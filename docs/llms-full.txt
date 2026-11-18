@@ -67,6 +67,11 @@ import tails.xarray as tx
     <name>_se from the observed Hessian, loglik, converged.
     A cell with fewer than two durations of three finite years is NaN.
   tx.idf_quantile(idf_ds, [1.0], [100])   # intensity at 1 h, 100-year return period
+  Worked example: docs/tutorial_quebec_idf.md section 8. Three bundled Québec
+  stations as a DataArray of depths (mm), depth=True, marginal="general".
+  Québec City 701S001 100-year 1 h intensity is 46.06 mm/h, the same as
+  fit_idf(IDFData.from_eccc("701S001"), "general"). Montréal–Trudeau 48.35 mm/h;
+  Sherbrooke A (1962–1994) 50.77 mm/h.
 
 import tails.xclim   # before `from xclim... import frequency_analysis`
   from xclim.compute.stats import frequency_analysis, fit   # xclim >= 1.0

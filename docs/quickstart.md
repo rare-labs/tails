@@ -94,7 +94,8 @@ q100 = txr.idf_quantile(idf, [1.0], [100])   # 100-year intensity at 1 hour
 `intensity` is annual-maximum intensity (mm/h). The `duration` coordinate is
 hours, a timedelta, or an ECCC tag (`1h`, `24h`, …). Pass `depth=True` when
 the array stores depth in mm instead. Chunks must not split `year` or
-`duration`.
+`duration`. A worked example on three bundled Québec stations is in the
+[Québec City tutorial](tutorial_quebec_idf.md#8-the-same-fit-on-an-xarray-grid).
 
 ## How do I fit an IDF curve?
 

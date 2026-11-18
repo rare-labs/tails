@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`5min` … `24h`); `depth=True` converts depths in mm to intensities.
   `tails.xarray.idf_quantile` evaluates the fitted curves at chosen durations
   and return periods. Parameters are the natural IDF parameters, with standard
-  errors from the observed Hessian.
+  errors from the observed Hessian. A worked example on three bundled Québec
+  stations is in the Québec City tutorial.
 - `import tails.xclim` registers an optional backend on xclim frequency
   analysis (`xclim.compute.stats` in xclim 1.0 and later, `xclim.indices.stats`
   in xclim 0.x). `frequency_analysis(..., backend="tails", ci="profile")` and
