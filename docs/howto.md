@@ -26,6 +26,30 @@ fitted density. For a batched fit, `index` selects the series (default 0).
 
 ![Diagnostic plots for Québec City 24-h annual maxima](img/diagnostics_701S001_24h.png)
 
+A non-stationary GEV uses the same method. The figure is one panel: the
+block maxima, the fitted return level along the covariate, and a confidence
+ribbon. `period` defaults to 2, the median of the fitted GEV. `ci` is
+`"delta"`, `"profile"` or `"bootstrap"`.
+
+The horizontal axis is the covariate passed to `fit_gev`. That can be a
+year, a temperature index, or any other series, on the location, the scale,
+or the shape. An array with no name is labelled "Covariate". A pandas
+column name is copied onto the axis. With more than one distinct covariate
+column, the points stay in observation order and the line is the return
+level at each row.
+
+```python
+import pandas as pd
+
+covariate = pd.Series(range(1961, 1961 + len(y)), name="year", dtype="float64")
+trend = tails.fit_gev(y, loc=covariate)
+fig, ax = trend.plot_diagnostics(ci="delta")  # or ci="profile"
+```
+
+`y` is the series from the stationary example above. The axes are the
+covariate and the block maximum. The same call with a column named
+`"temperature"` labels the axis "temperature".
+
 IDF curves use the same style — one line and a confidence ribbon per return
 period, on log–log axes in mm/h against duration in hours. The points are the
 empirical T-year intensities at each duration (Weibull plotting positions),

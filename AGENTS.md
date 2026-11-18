@@ -29,7 +29,7 @@ Source: https://github.com/rare-labs/tails
 | ECCC / GeoMet | `from tails.datasets import eccc_daily, eccc_hourly` — `eccc_daily("701S001", 2020)` |
 | How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")` |
 | Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
-| Plots | `fit.plot_diagnostics()`, `tails.plot_threshold(series, unit=...)`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
+| Plots | `fit.plot_diagnostics()` (stationary 2×2, or a non-stationary GEV trend), `tails.plot_threshold(series, unit=...)`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")`. Gridded IDF: `tx.fit_idf(intensity, year="year", duration="duration")`, then `tx.idf_quantile(ds, [1.0], [100])` |
 | xclim frequency analysis | `import tails.xclim`, then `frequency_analysis(da, "max", [20, 100], "genextreme", backend="tails", ci="profile")` from `xclim.compute.stats` (xclim ≥ 1) or `xclim.indices.stats` (xclim 0.x). The returned `c` is scipy's: `c = -ξ` for genextreme, `c = ξ` for genpareto |
 | Bayesian GEV | `from tails.bayes import fit_gev_bayes` (extra `rare-tails[bayes]`) |
@@ -95,11 +95,14 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
   fixed for delta and profile intervals, including POT return levels and
   non-stationary GEV profiles. Bootstrap refits a free ξ, so `ci="bootstrap"`
   is rejected; use `"delta"` or `"profile"`.
-- **Plots.** `fit.plot_diagnostics()` (GEV/GPD/POT, stationary),
-  `tails.plot_threshold(series, unit="mm")` (mean-excess ribbon, modified
-  scale, shape, and the ForwardStop threshold) and `IDFFit.plot()` (curves +
-  CI ribbons + empirical return-period points) require
-  `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
+- **Plots.** `fit.plot_diagnostics()` for a stationary GEV, GPD or POT (QQ, PP,
+  return level, density). A non-stationary GEV draws the observations, the
+  fitted return level along the covariate, and a delta or profile ribbon.
+  The x-axis is the covariate passed to `fit_gev` (a year, a temperature
+  index, or anything else). `tails.plot_threshold(series, unit="mm")` draws
+  the mean-excess ribbon, modified scale, shape, and the ForwardStop
+  threshold. `IDFFit.plot()` (curves + CI ribbons + empirical return-period
+  points) requires `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
   use `plot_diagnostics()` or `ReturnLevels.plot()`.
 - **Covariates** are centred and scaled internally; reported coefficients
   are on the user’s scale. Shape covariates are usually a bad idea unless
