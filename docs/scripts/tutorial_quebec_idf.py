@@ -160,17 +160,19 @@ ax.set_xticks(x, data.tags)
 ax.set_yscale("log")
 ax.set_ylabel("100-year intensity (mm/h)")
 ax.set_xlabel("Duration")
-ax.set_title("Québec City – Jean Lesage Intl (701S001): 100-year intensity and 95% intervals")
+ax.set_title("Québec City (701S001)\n100-year intensity and 95% intervals")
 apply_axes_style(ax)
-ax.legend(frameon=False, fontsize=8)
+ax.legend(frameon=False, fontsize=8, loc="upper right")
 fig.tight_layout()
-fig.savefig(IMG / "quebec_100yr_ci.png", dpi=180)
+fig.savefig(IMG / "quebec_100yr_ci.png", dpi=180, bbox_inches="tight")
 w("![100-year intervals](img/quebec_100yr_ci.png)\n")
 
-ax = gau.plot(periods=(2, 10, 25, 100), ci="hessian")
-ax.set_title("Québec City – Jean Lesage Intl (701S001), d-GEV + Matérn Gaussian copula")
-ax.figure.tight_layout()
-ax.figure.savefig(IMG / "quebec_idf_curves.png", dpi=180)
+ax = gau.plot(
+    periods=(2, 10, 25, 100),
+    ci="hessian",
+    title="Québec City (701S001)\nIDF curves, d-GEV with Matérn Gaussian copula",
+)
+ax.figure.savefig(IMG / "quebec_idf_curves.png", dpi=180, bbox_inches="tight")
 w("![IDF curves](img/quebec_idf_curves.png)\n")
 
 # 6 trend ------------------------------------------------------------------------------------------
@@ -247,7 +249,7 @@ ax.text(
     clip_on=False,
 )
 fig.tight_layout()
-fig.savefig(IMG / "quebec_map_q100_1h.png", dpi=180)
+fig.savefig(IMG / "quebec_map_q100_1h.png", dpi=180, bbox_inches="tight")
 w("![Québec map](img/quebec_map_q100_1h.png)\n")
 w("## Caveats\n")
 w("- ECCC annual maxima mix station histories (composite records); check metadata before inference.\n"

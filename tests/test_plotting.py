@@ -63,7 +63,7 @@ def test_idf_plot_units_ribbons_and_empirical_legend():
     # Ribbons present; legend names the empirical points (not unexplained grey dots).
     assert any("PolyCollection" in c.__class__.__name__ for c in ax.collections)
     labels = [t.get_text() for t in ax.get_legend().get_texts()]
-    assert "Observed annual maxima (empirical return period)" in labels
+    assert "Observed (empirical return period)" in labels
     assert any("2-year" in t or "2-yr" in t for t in labels)
     # Empirical 2-year point at 1 h is the Weibull quantile of the 1-h column.
     col = list(data.durations).index(1.0)

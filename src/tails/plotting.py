@@ -144,7 +144,7 @@ def plot_fit_diagnostics(
             ax_rl.fill_between(periods, lo, hi, color=color(0), alpha=0.22, linewidth=0, zorder=2, label=label)
         if family == "gev":
             emp = empirical_return_levels(x, periods)
-            ax_rl.scatter(periods, emp, s=22, color="0.15", zorder=4, label="Observed annual maxima (empirical return period)")
+            ax_rl.scatter(periods, emp, s=22, color="0.15", zorder=4, label="Observed (empirical return period)")
         ax_rl.set_xlabel("Return period (years)")
         ax_rl.set_ylabel("Return level")
         ax_rl.set_title("Return level")
@@ -308,7 +308,7 @@ def plot_idf(
             color="0.2",
             edgecolors="white",
             linewidths=0.5,
-            label="Observed annual maxima (empirical return period)",
+            label="Observed (empirical return period)",
         )
     ax.set_xscale("log")
     ax.set_yscale("log")
@@ -318,6 +318,8 @@ def plot_idf(
         ax.set_title(title)
     elif fit.stations:
         ax.set_title(str(fit.stations[station]))
-    ax.legend(frameon=False, fontsize=8)
+    # Lower left is the empty corner of a log–log IDF plot (short duration, low intensity).
+    ax.legend(frameon=False, fontsize=8, loc="lower left")
     apply_axes_style(ax)
+    ax.figure.tight_layout()
     return ax
