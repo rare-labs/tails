@@ -104,11 +104,13 @@ number of observations, as in `decluster_runs`, or an offset such as `"24h"`.
 
 ```python
 peaks = tails.fit_peaks(daily, threshold=20.0, run_length="24h", model="aic")
-peaks.summary()   # delta-method intervals
+peaks.summary()              # delta-method intervals
+peaks.summary(ci="profile")  # joint profile of excesses and the exceedance rate
 ```
 
-`POTFit.return_level` supports `ci="delta"` only, so `summary()` on a peaks
-result uses that.
+`summary()` on a peaks result defaults to the delta method. `ci="profile"` and
+`ci="bootstrap"` match `POTFit.return_level`. An exponential model keeps ξ = 0
+inside the profile interval.
 
 ## How rare was this storm?
 
@@ -142,7 +144,8 @@ The 2005 24-hour total of 105.4 mm is a little above the 100-year level
 (102.1 mm, 95% profile interval 90.5–131.1 mm), so the return-period interval
 is wide — a 64-year record cannot pin down a 138-year event tightly, and the
 sentence says so. `ci="delta"` or `"bootstrap"` are also accepted. For
-peaks-over-threshold, pass `model="pot"` and a `threshold`.
+peaks-over-threshold, pass `model="pot"` and a `threshold`; the same three
+intervals are available, and `"profile"` is the default there too.
 
 ![Return-level chart with the 2005 event marked](img/how_rare_2005.png)
 

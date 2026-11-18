@@ -30,11 +30,15 @@ tails.fit_gev(data, loc=None, scale=None, shape=None, mask=None, method="mle")
   Returns GEVFit.
   fit.params is a dict with natural parameters loc, scale, shape (arrays).
   fit.return_level(periods, ci="profile"|"delta"|"bootstrap", alpha=0.05)
+  Profile and bootstrap apply to stationary GEV and to GEV with covariates
+  (the profile replaces the location intercept at each covariate row).
   fit.coef, fit.se, fit.summary(), fit.converged, fit.nobs, fit.loglik.
 
 tails.fit_gpd(data, threshold=None, ...)
 tails.fit_pot(data, threshold, npy=365.25, ...)
-  POT return_level supports ci=None or "delta" only.
+  POT return_level ci is "delta", "profile" or "bootstrap" (stationary).
+  Profile is the joint excess + exceedance-rate likelihood. fixed_shape
+  stays fixed for delta and profile; bootstrap needs a free shape.
 
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold

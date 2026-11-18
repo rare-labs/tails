@@ -63,9 +63,11 @@ the original scale.
 years = np.arange(len(y)) + 1961.0
 fit = tails.fit_gev(y, loc=years - 2000)          # mu(t) = b0 + b1 (t - 2000)
 fit.param_names                                    # ['loc', 'loc:x0', 'log_scale', 'shape']
-fit.return_level([100], covariates={"loc": np.array([[-30.0], [24.0]])}, ci="delta")
+fit.return_level([100], covariates={"loc": np.array([[-30.0], [24.0]])}, ci="profile")
 ```
 
+`ci` is `"delta"`, `"profile"` or `"bootstrap"` here as well. The profile
+replaces the location intercept with the return level at each covariate row.
 Covariates can be passed for `loc`, `scale` (log link) and `shape`, shared `(n, k)` or per series
 `(*batch, n, k)`. Use `method="gmle"` for short records.
 
@@ -74,11 +76,14 @@ Covariates can be passed for `loc`, `scale` (log link) and `shape`, shared `(n, 
 ```python
 sel = tails.select_threshold(daily, np.quantile(daily, np.linspace(0.90, 0.99, 15)))
 pot = tails.fit_pot(daily, sel.threshold, npy=365.25, decluster=2)
-pot.return_level([10, 50], ci="delta")
+pot.return_level([10, 50], ci="profile")  # or "delta", "bootstrap"
 ```
 
 `select_threshold` runs a batched ForwardStop procedure with Anderson–Darling
-p-values. `POTFit.return_level` currently supports `ci=None` or `"delta"`.
+p-values. `POTFit.return_level` takes the same `ci` values as a GEV fit.
+`"profile"` is the joint profile of the excesses and the exceedance rate;
+`"bootstrap"` resamples both and refits. An exponential model
+(`fixed_shape=0`) keeps ξ fixed in the profile interval.
 
 ## How do I work from an xarray Dataset?
 

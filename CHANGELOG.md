@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Profile-likelihood and parametric-bootstrap intervals for stationary
+  peaks-over-threshold return levels (`POTFit.return_level`, and
+  `SeriesExtremes.summary` via `ci="profile"` or `ci="bootstrap"`). The
+  profile is the joint likelihood of the excesses and the exceedance rate.
+  A fixed GPD shape (exponential excesses) stays fixed in that profile.
+- Profile-likelihood intervals for non-stationary GEV return levels, at the
+  fitted covariate rows or at new rows passed as `covariates`. Bootstrap
+  intervals for those models use the same parametric bootstrap as a
+  stationary GEV.
 - `import tails.xclim` registers an optional backend on xclim frequency
   analysis (`xclim.compute.stats` in xclim 1.0 and later, `xclim.indices.stats`
   in xclim 0.x). `frequency_analysis(..., backend="tails", ci="profile")` and

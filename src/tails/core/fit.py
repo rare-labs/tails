@@ -553,8 +553,10 @@ class GEVFit(_FitBase):
             (effective return level per observation).
         ci
             ``None``, ``"delta"`` (Wald, observed information), ``"profile"``
-            (profile likelihood, stationary models) or ``"bootstrap"``
-            (parametric bootstrap, percentile intervals). A fit with
+            (profile likelihood) or ``"bootstrap"`` (parametric bootstrap,
+            percentile intervals). Profile intervals are available for
+            stationary models and for models with covariates: the return level
+            at each covariate row replaces the location intercept. A fit with
             ``fixed_shape`` keeps that shape fixed in the profile interval;
             bootstrap intervals are not available for it.
         """
@@ -580,17 +582,22 @@ class GEVFit(_FitBase):
             sd = np.sqrt(np.clip(var, 0, None))
             lo, hi = est - zq * sd, est + zq * sd
         elif ci == "profile":
-            if not self.stationary:
-                raise ValueError("profile intervals are implemented for stationary models")
             if self.free_params is not None:
                 from .uncertainty import profile_fixed_shape_return_level
 
                 lo, hi = profile_fixed_shape_return_level(self, T, alpha=alpha, n_points=profile_points)
-            else:
+                lo, hi = lo[:, None, :], hi[:, None, :]
+            elif self.stationary:
                 from .uncertainty import profile_return_level
 
                 lo, hi = profile_return_level(self, T, alpha=alpha, n_points=profile_points)
-            lo, hi = lo[:, None, :], hi[:, None, :]
+                lo, hi = lo[:, None, :], hi[:, None, :]
+            else:
+                from .uncertainty import profile_covariate_return_level
+
+                lo, hi = profile_covariate_return_level(
+                    self, T, covariates=covariates, alpha=alpha, n_points=profile_points
+                )
         elif ci == "bootstrap":
             if self.free_params is not None:
                 raise ValueError(
@@ -726,10 +733,25 @@ class POTFit(GPDFit):
     n_total: np.ndarray | None = None
     npy: float = 365.25
 
-    def return_level(self, period, *, ci: str | None = None, alpha: float = 0.05) -> ReturnLevels:
+    def return_level(
+        self,
+        period,
+        *,
+        ci: str | None = None,
+        alpha: float = 0.05,
+        n_boot: int = 500,
+        seed: int = 0,
+        profile_points: int = 41,
+    ) -> ReturnLevels:
         """Level exceeded on average once every ``period`` years (Coles 2001, §4.3.3).
 
-        ``ci="delta"`` propagates GPD and exceedance-rate uncertainty.
+        ``ci="delta"`` is a Wald interval from the GPD observed information and
+        the binomial variance of the exceedance rate. ``ci="profile"`` profiles
+        the joint likelihood of the excesses and that rate, with the return
+        level as the interest parameter. ``ci="bootstrap"`` is a parametric
+        percentile interval: resample the exceedance count and the excesses,
+        then refit. A fit with ``fixed_shape`` keeps that shape in the profile
+        interval; bootstrap intervals are not available for it.
         """
         if not self.stationary:
             raise ValueError("POT return levels are implemented for stationary models")
@@ -759,8 +781,20 @@ class POTFit(GPDFit):
             sd = np.sqrt(np.clip(var, 0, None))
             zq = norm.ppf(1 - alpha / 2)
             lo, hi = est - zq * sd, est + zq * sd
+        elif ci == "profile":
+            from .uncertainty import profile_pot_return_level
+
+            lo, hi = profile_pot_return_level(self, T, alpha=alpha, n_points=profile_points)
+        elif ci == "bootstrap":
+            if self.free_params is not None:
+                raise ValueError(
+                    "bootstrap intervals refit a free shape; with fixed_shape use ci='delta' or 'profile'"
+                )
+            from .uncertainty import bootstrap_pot_return_level
+
+            lo, hi = bootstrap_pot_return_level(self, T, n_boot=n_boot, seed=seed, alpha=alpha)
         elif ci is not None:
-            raise ValueError("POTFit.return_level supports ci=None or 'delta'")
+            raise ValueError("ci must be None, 'delta', 'profile' or 'bootstrap'")
         shp = (*self.batch_shape, len(T))
         rs = lambda a: None if a is None else np.asarray(a).reshape(shp)  # noqa: E731
         return ReturnLevels(T, rs(est), rs(lo), rs(hi), ci, alpha)
