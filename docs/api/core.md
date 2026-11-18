@@ -1,5 +1,6 @@
 # Core API
 
+::: tails.series
 ::: tails.core.fit.fit_gev
 ::: tails.core.fit.fit_gpd
 ::: tails.core.fit.fit_pot

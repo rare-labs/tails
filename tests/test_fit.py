@@ -72,6 +72,64 @@ def test_gpd_and_pot(rng):
     assert np.all(rl.lower < rl.estimate)
 
 
+def test_fixed_shape_gumbel_matches_scipy(rng):
+    from scipy.stats import gumbel_r
+
+    y = rng.gumbel(30.0, 8.0, size=(3, 120))
+    fit = tails.fit_gev(y, fixed_shape=0.0)
+    assert fit.free_params == 2
+    assert fit.n_params == 2
+    assert fit.converged.all()
+    np.testing.assert_allclose(fit.params["shape"], 0.0)
+    for i in range(3):
+        loc, scale = gumbel_r.fit(y[i])
+        ll = gumbel_r.logpdf(y[i], loc, scale).sum()
+        assert fit.params["loc"][i] == pytest.approx(loc, rel=1e-4, abs=1e-4)
+        assert fit.params["scale"][i] == pytest.approx(scale, rel=1e-4, abs=1e-4)
+        assert fit.loglik[i] == pytest.approx(ll, rel=1e-5, abs=1e-4)
+        assert fit.aic[i] == pytest.approx(-2 * ll + 4, rel=1e-5, abs=1e-3)
+        free = tails.fit_gev(y[i])
+        assert free.loglik >= fit.loglik[i] - 1e-4
+
+
+def test_fixed_shape_exponential_and_pot_level(rng):
+    excess = rng.exponential(2.5, size=4000)
+    fit = tails.fit_gpd(excess, fixed_shape=0.0)
+    assert fit.n_params == 1
+    assert fit.params["shape"] == pytest.approx(0.0)
+    assert fit.params["scale"] == pytest.approx(2.5, rel=0.05)
+    # Raw series = threshold + exponential excess, so the excess scale is 2.5.
+    raw = 10.0 + excess
+    pot = tails.fit_pot(raw, 10.0, npy=365.25, fixed_shape=0.0)
+    assert pot.n_params == 1
+    scale = float(pot.params["scale"])
+    zeta = float(pot.zeta)
+    period = np.array([10.0, 50.0])
+    manual = 10.0 + scale * np.log(period * pot.npy * zeta)
+    rl = pot.return_level(period, ci="delta")
+    np.testing.assert_allclose(rl.estimate, manual, rtol=1e-6)
+    assert np.all(rl.lower < rl.estimate) and np.all(rl.estimate < rl.upper)
+
+
+def test_fixed_negative_shape_matches_constraint(rng):
+    y = stats.genextreme.rvs(0.2, loc=10, scale=2, size=80, random_state=rng)
+    fit = tails.fit_gev(y, fixed_shape=-0.2)
+    assert fit.converged
+    assert float(fit.params["shape"]) == pytest.approx(-0.2)
+    assert np.isfinite(fit.loglik)
+    free = tails.fit_gev(y)
+    assert free.loglik + 1e-4 >= fit.loglik
+
+
+def test_fixed_shape_rejects_covariates_and_bootstrap(rng):
+    y = rng.gumbel(0.0, 1.0, size=40)
+    with pytest.raises(ValueError, match="stationary"):
+        tails.fit_gev(y, loc=np.arange(40.0), fixed_shape=0.0)
+    fit = tails.fit_gev(y, fixed_shape=0.0)
+    with pytest.raises(ValueError, match="bootstrap"):
+        fit.return_level([10], ci="bootstrap")
+
+
 def test_lmoments_known_values():
     x = np.arange(1.0, 11.0)
     lm = np.asarray(tails.sample_lmoments(x))

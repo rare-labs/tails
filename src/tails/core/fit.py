@@ -9,8 +9,9 @@ from typing import Any
 import numpy as np
 
 from .._jax import jax, jnp
+from ._derivs import gev_derivs, gpd_derivs
 from ._engine import FAMILIES, Design, back_transform_matrix, build_design, make_nll, make_vgh, natural_params
-from .distributions import gev_ppf, gpd_ppf
+from .distributions import gev_logpdf, gev_ppf, gpd_logpdf, gpd_ppf
 from .lmoments import gev_from_lmoments, gpd_from_lmoments, sample_lmoments
 from .optim import minimize
 
@@ -72,6 +73,9 @@ class _FitBase:
     _mask: np.ndarray = field(repr=False)
     _designs: list[Design] = field(repr=False)
     _raw: list[np.ndarray] = field(repr=False)
+    # When shape is held fixed, the stored coefficient vector still contains it
+    # (so return levels keep working) but AIC/BIC must not count it as free.
+    free_params: int | None = None
 
     # ---------------------------------------------------------------- basics
     @property
@@ -84,6 +88,8 @@ class _FitBase:
 
     @property
     def n_params(self) -> int:
+        if self.free_params is not None:
+            return int(self.free_params)
         return int(sum(self.ks))
 
     @property
@@ -327,6 +333,166 @@ def _check_method(method, prior):
     return prior
 
 
+# --------------------------------------------------------------- fixed shape
+def _fixed_nll_gev(theta, y, mask, xi):
+    loc, phi = theta[0], theta[1]
+    ysafe = jnp.where(mask, y, loc)
+    lp = gev_logpdf(ysafe, loc, jnp.exp(phi), xi)
+    return -jnp.sum(jnp.where(mask, lp, 0.0))
+
+
+def _fixed_vgh_gev(theta, y, mask, xi):
+    loc, phi = theta[0], theta[1]
+    ysafe = jnp.where(mask, y, loc)
+    lp, g, h = gev_derivs(ysafe, loc, phi, xi, stacked=False)
+    w = mask.astype(y.dtype)
+    f = -jnp.sum(jnp.where(mask, lp, 0.0))
+    grad = jnp.stack([jnp.sum(-(g[0] * w)), jnp.sum(-(g[1] * w))])
+    h00 = jnp.sum(-(h[0][0] * w))
+    h01 = jnp.sum(-(h[0][1] * w))
+    h11 = jnp.sum(-(h[1][1] * w))
+    hess = jnp.array([[h00, h01], [h01, h11]])
+    return f, grad, hess
+
+
+def _fixed_nll_gpd(theta, y, mask, xi):
+    phi = theta[0]
+    ysafe = jnp.where(mask, y, 0.0)
+    lp = gpd_logpdf(ysafe, jnp.exp(phi), xi)
+    return -jnp.sum(jnp.where(mask, lp, 0.0))
+
+
+def _fixed_vgh_gpd(theta, y, mask, xi):
+    phi = theta[0]
+    ysafe = jnp.where(mask, y, 0.0)
+    lp, g, h = gpd_derivs(ysafe, phi, xi, stacked=False)
+    w = mask.astype(y.dtype)
+    f = -jnp.sum(jnp.where(mask, lp, 0.0))
+    grad = jnp.stack([jnp.sum(-(g[0] * w))])
+    hess = jnp.array([[jnp.sum(-(h[0][0] * w))]])
+    return f, grad, hess
+
+
+def _repair_fixed_start(family, x0, y2, m2, xi):
+    """Move an infeasible L-moment start inside the support of a fixed shape."""
+    nll = _fixed_nll_gev if family == "gev" else _fixed_nll_gpd
+    fun = jax.jit(jax.vmap(nll, in_axes=(0, 0, 0, None)))
+    vals = np.asarray(fun(jnp.asarray(x0), jnp.asarray(y2), jnp.asarray(m2), jnp.asarray(xi)))
+    bad = ~np.isfinite(vals)
+    if not np.any(bad):
+        return x0
+    yy = np.where(m2, y2, np.nan)
+    ymin = np.nanmin(yy, axis=1)
+    ymax = np.nanmax(yy, axis=1)
+    span = np.maximum(ymax - ymin, 1e-3)
+    x0 = np.array(x0, copy=True)
+    if family == "gev":
+        sc = np.maximum(span, np.exp(x0[:, 1]))
+        if xi < 0:
+            loc = ymax + sc - sc / abs(xi)
+        elif xi > 0:
+            loc = ymin - sc
+        else:
+            loc = 0.5 * (ymin + ymax)
+        x0[bad, 0] = loc[bad]
+        x0[bad, 1] = np.log(sc[bad])
+    else:
+        x0[bad, 0] = np.log(np.maximum(span[bad], 1e-3))
+    return x0
+
+
+def _fit_fixed_shape(family, data, fixed_shape, mask, max_iter):
+    """Stationary GEV or GPD with ξ held at ``fixed_shape``.
+
+    Coefficients still include the fixed shape so return levels and ``params``
+    look like a free fit. ``free_params`` is 2 (GEV: loc, log scale) or 1
+    (GPD: log scale), which is what AIC and BIC use. ξ = 0 is the Gumbel
+    distribution for block maxima and the exponential distribution for excesses.
+    """
+    if family not in ("gev", "gpd"):
+        raise ValueError("fixed shape is implemented for the GEV and the GPD")
+    xi = float(fixed_shape)
+    if not np.isfinite(xi):
+        raise ValueError("fixed_shape must be finite")
+    y2, m2, batch_shape, n = _prepare(data, mask)
+    B = y2.shape[0]
+    nobs = m2.sum(-1)
+    if np.any(nobs < 2):
+        raise ValueError("every series needs at least 2 finite observations")
+    yy = np.where(m2, y2, np.nan)
+    if family == "gev":
+        lm = np.asarray(sample_lmoments(jnp.asarray(yy)))
+        l1, l2 = lm[:, 0], lm[:, 1]
+        sc = np.maximum(l2 / np.log(2.0), 1e-8)
+        x0 = np.stack([l1 - 0.5772156649015329 * sc, np.log(sc)], axis=-1)
+        nll, vgh = _fixed_nll_gev, _fixed_vgh_gev
+        n_free, prefixes = 2, ("loc", "scale", "shape")
+    else:
+        mean = np.nanmean(yy, axis=-1)
+        mean = np.where(np.isfinite(mean) & (mean > 0), mean, 1.0)
+        x0 = np.log(mean)[:, None]
+        nll, vgh = _fixed_nll_gpd, _fixed_vgh_gpd
+        n_free, prefixes = 1, ("scale", "shape")
+    # ξ = 0 (Gumbel / exponential) is supported on the whole line, so the
+    # L-moment start is feasible and does not need a second compiled check.
+    if xi != 0.0:
+        x0 = _repair_fixed_start(family, x0, y2, m2, xi)
+    res = minimize(
+        nll,
+        jnp.asarray(x0),
+        jnp.asarray(y2),
+        jnp.asarray(m2),
+        jnp.asarray(xi),
+        arg_axes=(0, 0, None),
+        max_iter=max_iter,
+        vgh=vgh,
+    )
+    theta = np.asarray(res.x)
+    p_full = 3 if family == "gev" else 2
+    coef = np.zeros((B, p_full))
+    cov = np.zeros((B, p_full, p_full))
+    cov_free = _inv_hessian(np.asarray(res.hess))
+    if family == "gev":
+        coef[:, 0:2] = theta
+        coef[:, 2] = xi
+        cov[:, :2, :2] = cov_free
+    else:
+        coef[:, 0] = theta[:, 0]
+        coef[:, 1] = xi
+        cov[:, 0, 0] = cov_free[:, 0, 0]
+    designs = [build_design(None, n, batch_shape, B, name) for name in prefixes]
+    names = [nm.replace("scale", "log_scale", 1) if nm.startswith("scale") else nm for nm in prefixes]
+    loglik = -np.asarray(res.fun)
+    return dict(
+        family=family,
+        coef=coef.reshape(*batch_shape, p_full),
+        cov=cov.reshape(*batch_shape, p_full, p_full),
+        loglik=loglik.reshape(batch_shape),
+        converged=np.asarray(res.converged).reshape(batch_shape),
+        n_iter=np.asarray(res.n_iter).reshape(batch_shape),
+        nobs=nobs.reshape(batch_shape),
+        param_names=names,
+        batch_shape=batch_shape,
+        method="mle",
+        prior=None,
+        _theta_std=coef.reshape(*batch_shape, p_full),
+        _y=y2,
+        _mask=m2,
+        _designs=designs,
+        _raw=[_raw_design(None, n, batch_shape) for _ in prefixes],
+        free_params=n_free,
+    )
+
+
+def _reject_fixed_shape_extras(fixed_shape, method, covariates):
+    if fixed_shape is None:
+        return
+    if method != "mle":
+        raise ValueError("fixed_shape requires method='mle'")
+    if any(c is not None for c in covariates):
+        raise ValueError("fixed_shape is only implemented for stationary models without covariates")
+
+
 # --------------------------------------------------------------------- GEV
 @dataclass(repr=False)
 class GEVFit(_FitBase):
@@ -388,7 +554,9 @@ class GEVFit(_FitBase):
         ci
             ``None``, ``"delta"`` (Wald, observed information), ``"profile"``
             (profile likelihood, stationary models) or ``"bootstrap"``
-            (parametric bootstrap, percentile intervals).
+            (parametric bootstrap, percentile intervals). A fit with
+            ``fixed_shape`` keeps that shape fixed in the profile interval;
+            bootstrap intervals are not available for it.
         """
         T = np.atleast_1d(np.asarray(period, dtype=np.float64))
         if np.any(T <= 1):
@@ -414,11 +582,20 @@ class GEVFit(_FitBase):
         elif ci == "profile":
             if not self.stationary:
                 raise ValueError("profile intervals are implemented for stationary models")
-            from .uncertainty import profile_return_level
+            if self.free_params is not None:
+                from .uncertainty import profile_fixed_shape_return_level
 
-            lo, hi = profile_return_level(self, T, alpha=alpha, n_points=profile_points)
+                lo, hi = profile_fixed_shape_return_level(self, T, alpha=alpha, n_points=profile_points)
+            else:
+                from .uncertainty import profile_return_level
+
+                lo, hi = profile_return_level(self, T, alpha=alpha, n_points=profile_points)
             lo, hi = lo[:, None, :], hi[:, None, :]
         elif ci == "bootstrap":
+            if self.free_params is not None:
+                raise ValueError(
+                    "bootstrap intervals refit a free shape; with fixed_shape use ci='delta' or 'profile'"
+                )
             from .uncertainty import bootstrap_coef
 
             boot = bootstrap_coef(self, n_boot=n_boot, seed=seed)  # (B, R, p)
@@ -444,6 +621,7 @@ def fit_gev(
     method: str = "mle",
     prior: str | None = None,
     max_iter: int = 200,
+    fixed_shape: float | None = None,
 ) -> GEVFit:
     """Fit GEV distributions to one or many series of block maxima at once.
 
@@ -462,6 +640,11 @@ def fit_gev(
         ``"mle"`` (default), ``"gmle"`` (MLE with the Martins–Stedinger
         Beta(6, 9) prior on the shape, robust for short records) or
         ``"lmom"`` (L-moments, stationary only).
+    fixed_shape
+        Hold ξ at this value instead of estimating it. ``0`` is the Gumbel
+        model (two free parameters: location and log scale). Stationary models
+        only. AIC and BIC then count the free parameters, not the fixed shape.
+        The shape is still reported in ``params`` and ``coef``.
 
     Returns
     -------
@@ -477,6 +660,9 @@ def fit_gev(
     >>> fit.params["shape"].shape
     (1000,)
     """
+    _reject_fixed_shape_extras(fixed_shape, method, (loc, scale, shape))
+    if fixed_shape is not None:
+        return GEVFit(**_fit_fixed_shape("gev", data, fixed_shape, mask, max_iter))
     prior = _check_method(method, prior)
     return GEVFit(**_fit("gev", data, (loc, scale, shape), mask, prior, method, max_iter))
 
@@ -508,6 +694,7 @@ def fit_gpd(
     method: str = "mle",
     prior: str | None = None,
     max_iter: int = 200,
+    fixed_shape: float | None = None,
 ) -> GPDFit:
     """Fit generalised Pareto distributions to threshold excesses (batched).
 
@@ -515,10 +702,17 @@ def fit_gpd(
     above the threshold are used (as excesses). The threshold may be a scalar,
     one value per series (``batch`` shape) or one per observation (time-varying
     thresholds). Otherwise ``data`` are already excesses (NaN = unused).
+
+    ``fixed_shape`` holds ξ. ``0`` is the exponential distribution of excesses
+    (one free parameter, the log scale). Stationary models only.
     """
-    prior = _check_method(method, prior)
     y = _excesses(data, threshold) if threshold is not None else np.asarray(data, float)
-    out = _fit("gpd", y, (scale, shape), mask, prior, method, max_iter)
+    _reject_fixed_shape_extras(fixed_shape, method, (scale, shape))
+    if fixed_shape is not None:
+        out = _fit_fixed_shape("gpd", y, fixed_shape, mask, max_iter)
+    else:
+        prior = _check_method(method, prior)
+        out = _fit("gpd", y, (scale, shape), mask, prior, method, max_iter)
     return GPDFit(**out, threshold=threshold)
 
 
@@ -581,6 +775,7 @@ def fit_pot(
     method: str = "mle",
     prior: str | None = None,
     max_iter: int = 200,
+    fixed_shape: float | None = None,
 ) -> POTFit:
     """Peaks-over-threshold analysis of (batched) series.
 
@@ -595,6 +790,9 @@ def fit_pot(
     decluster
         If given, apply runs declustering with this run length before fitting
         (cluster maxima only).
+    fixed_shape
+        Hold the GPD shape ξ. ``0`` is an exponential excess model. The
+        exceedance rate is unchanged. Stationary models only.
     """
     x = np.asarray(data, dtype=np.float64)
     if decluster is not None:
@@ -607,6 +805,10 @@ def fit_pot(
     n_total = np.isfinite(np.asarray(data, float)).sum(-1)
     k = exceed.sum(-1)
     zeta = k / n_total
-    prior = _check_method(method, prior)
-    out = _fit("gpd", _excesses(x, threshold), (None, None), None, prior, method, max_iter)
+    _reject_fixed_shape_extras(fixed_shape, method, ())
+    if fixed_shape is not None:
+        out = _fit_fixed_shape("gpd", _excesses(x, threshold), fixed_shape, None, max_iter)
+    else:
+        prior = _check_method(method, prior)
+        out = _fit("gpd", _excesses(x, threshold), (None, None), None, prior, method, max_iter)
     return POTFit(**out, threshold=threshold, rate=zeta * npy, zeta=zeta, n_total=n_total, npy=npy)

@@ -3,6 +3,8 @@
 >>> import tails
 >>> fit = tails.fit_gev(annual_maxima)          # one series or 100 000 at once
 >>> fit.return_level([20, 100], ci="profile")
+>>> ext = tails.fit_block_maxima(daily_series)  # datetime series → block maxima → table
+>>> ext.summary()
 
 Submodules
 ----------
@@ -22,10 +24,21 @@ from . import (
 from .core import *  # noqa: F401,F403
 from .core import __all__ as _core_all
 from .how_rare import HowRare, how_rare
+from .series import SeriesExtremes, fit_block_maxima, fit_peaks
 
 __version__ = "0.1.0"
 
-__all__ = ["core", "records", "__version__", "how_rare", "HowRare", *_core_all]
+__all__ = [
+    "core",
+    "records",
+    "__version__",
+    "how_rare",
+    "HowRare",
+    "fit_block_maxima",
+    "fit_peaks",
+    "SeriesExtremes",
+    *_core_all,
+]
 
 
 def __getattr__(name):  # lazy heavy submodules
