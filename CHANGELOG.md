@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fitted covariate rows or at new rows passed as `covariates`. Bootstrap
   intervals for those models use the same parametric bootstrap as a
   stationary GEV.
+- Québec City IDF tutorial: an Open in Colab badge. The notebook is
+  `docs/notebooks/tutorial_quebec_idf.ipynb`.
 - `import tails.xclim` registers an optional backend on xclim frequency
   analysis (`xclim.compute.stats` in xclim 1.0 and later, `xclim.indices.stats`
   in xclim 0.x). `frequency_analysis(..., backend="tails", ci="profile")` and
