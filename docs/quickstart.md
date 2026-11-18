@@ -91,7 +91,16 @@ p-values. `POTFit.return_level` takes the same `ci` values as a GEV fit.
 import tails.xarray as txr
 ds = txr.fit_gev(annual_max.chunk({"lat": 50}), dim="year")   # Dataset of loc/log_scale/shape (+ se)
 rl100 = txr.return_level(ds, 100)
+
+idf = txr.fit_idf(intensity.chunk({"lat": 50}), year="year", duration="duration")
+q100 = txr.idf_quantile(idf, [1.0], [100])   # 100-year intensity at 1 hour
 ```
+
+`intensity` is annual-maximum intensity (mm/h). The `duration` coordinate is
+hours, a timedelta, or an ECCC tag (`1h`, `24h`, …). Pass `depth=True` when
+the array stores depth in mm instead. Chunks must not split `year` or
+`duration`. A worked example on three bundled Québec stations is in the
+[Québec City tutorial](tutorial_quebec_idf.md#8-the-same-fit-on-an-xarray-grid).
 
 ## How do I fit an IDF curve?
 

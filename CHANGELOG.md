@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tails.xarray.fit_idf` fits IDF curves on a DataArray of rainfall intensities,
+  one batched fit per Dask chunk, the same way `fit_gev` reduces a time
+  dimension. The duration axis is hours, a timedelta, or an ECCC tag
+  (`5min` … `24h`); `depth=True` converts depths in mm to intensities.
+  `tails.xarray.idf_quantile` evaluates the fitted curves at chosen durations
+  and return periods. Parameters are the natural IDF parameters, with standard
+  errors from the observed Hessian. A worked example on three bundled Québec
+  stations is in the Québec City tutorial.
 - Profile-likelihood and parametric-bootstrap intervals for stationary
   peaks-over-threshold return levels (`POTFit.return_level`, and
   `SeriesExtremes.summary` via `ci="profile"` or `ci="bootstrap"`). The
