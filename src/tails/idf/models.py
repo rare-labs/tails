@@ -447,27 +447,25 @@ class IDFFit:
         return _fit_arrays(self.model, sim, D, self.d0, x0=x0)
 
     # ----------------------------------------------------------------- plot
-    def plot(self, station: int = 0, periods=(2, 10, 25, 100), ax=None, data: bool = True):
-        """IDF curves on log–log axes, with empirical points if ``data``."""
-        import matplotlib.pyplot as plt
+    def plot(self, station: int = 0, periods=(2, 10, 25, 100), ax=None, data: bool = True, *, ci: str | None = "hessian", alpha: float = 0.05, title: str | None = None):
+        """IDF curves on log–log axes, with CI ribbons and empirical return-period points.
 
-        ax = ax or plt.subplots(figsize=(6, 4))[1]
-        dd = np.geomspace(self.D[station].min(), self.D[station].max(), 100)
-        q = self.quantile(dd, periods)[station]
-        for j, T in enumerate(periods):
-            ax.plot(dd, q[:, j], label=f"{T}-yr")
-        if data:
-            Y = np.where(self.M[station], self.Y[station], np.nan)
-            for j, d in enumerate(self.D[station]):
-                ax.scatter(np.full(Y.shape[0], d), Y[:, j], s=6, color="0.6", zorder=0)
-        ax.set_xscale("log")
-        ax.set_yscale("log")
-        ax.set_xlabel("Duration (h)")
-        ax.set_ylabel("Intensity (mm/h)")
-        ax.legend(title="Return period", fontsize=8)
-        if self.stations:
-            ax.set_title(str(self.stations[station]))
-        return ax
+        Parameters
+        ----------
+        station
+            Index of the station to plot (default 0).
+        periods
+            Return periods (years) drawn as separate curves.
+        data
+            If True, overlay empirical T-year intensities at each observed
+            duration (Weibull plotting positions), labelled in the legend.
+        ci
+            Ribbon method passed to :meth:`quantile_ci` (``"hessian"``,
+            ``"sandwich"``, ``"bootstrap"``), or ``None`` for curves only.
+        """
+        from ..plotting import plot_idf
+
+        return plot_idf(self, station=station, periods=periods, ax=ax, data=data, ci=ci, alpha=alpha, title=title)
 
 
 def _fit_arrays(model: IDFModel, Y, D, d0, x0=None, max_iter=200) -> IDFFit:

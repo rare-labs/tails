@@ -19,6 +19,7 @@ Until the first release: pip install "rare-tails @ git+https://github.com/rare-l
 
 - [Home / Q&A](https://rare-labs.github.io/tails/): what it is, “how rare was this storm?”, fitting 1,000 stations, which distribution
 - [Quickstart](https://rare-labs.github.io/tails/quickstart/): copy-pasteable recipes
+- [How-to](https://rare-labs.github.io/tails/howto/): diagnostic plots, how_rare, ECCC downloads
 - [Québec City IDF tutorial](https://rare-labs.github.io/tails/tutorial_quebec_idf/)
 - [Landscape](https://rare-labs.github.io/tails/landscape/): comparison with other packages
 - [Validation](https://rare-labs.github.io/tails/validation/): tails.idf vs IDFCurves.jl

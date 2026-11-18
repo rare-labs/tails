@@ -43,9 +43,14 @@ from tails.idf import IDFData, fit_idf, scaling_test
   fit_idf(data, "general"|"simple", "matern"|"exponential"|None)
   scaling_test(data, "simple"|"general") -> p-value
   idf.quantile_ci(durations, periods, method="hessian"|"sandwich"|"bootstrap")
-  idf.plot(...)  # IDF curves only
+  idf.plot(periods=(2,10,25,100), ci="hessian")  # log-log curves, CI ribbons,
+                                                 # empirical T-year points in mm/h vs hours
+  fit.plot_diagnostics(ci="profile")             # QQ/PP with bands, RL ribbon, density
+  rl.plot()                                      # ReturnLevels ribbon
 
-from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf
+from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf, eccc_daily, eccc_hourly
+  eccc_daily("701S001", 2020) / eccc_hourly(station, (2019, 2020))
+  Official API: https://api.weather.gc.ca (cached under $TAILS_CACHE or ~/.cache/tails).
   load_eccc_quebec() -> DataFrame with station_id, name, lat, lon, elevation,
   year, and duration columns 5min, 10min, 15min, 30min, 1h, 2h, 6h, 12h, 24h.
   151 Québec stations, ECCC IDF v3.40.
@@ -67,7 +72,9 @@ fit = tails.fit_gev(y)  # y = the 24h column
 #   estimate [84.883, 102.057]
 #   lower    [77.811,  90.504]
 #   upper    [97.962, 131.119]
-# Return period of 105.4 mm: 138.3 years (1 / (1 - gev_cdf(105.4, loc, scale, shape))).
+# Return period of 105.4 mm: 138.3 years.
+# tails.how_rare(depth, "2005-01-01", ci="profile", unit="mm", name="Québec City")
+#   "A value of 105.4 mm in 2005 at Québec City is a 1-in-138-year event (95% CI: 30–1212 years)."
 
 1-hour annual maximum 59.9 mm in 1979: single-duration GEV return period
 129.1 years. 20- and 100-year 1-hour levels 39.67 and 56.75 mm (profile CIs
@@ -89,6 +96,6 @@ single-station fit (102.0568 mm). Cap Tourmente 7041177 has nobs=11 and
 - scipy.stats.genextreme shape c equals minus tails/Coles ξ.
 - First JAX call compiles (seconds); later calls are fast.
 - Last axis is the record; preceding axes are the batch.
-- Do not invent diagnostic plot APIs for GEVFit; only IDFFit.plot exists.
+- Plot APIs: fit.plot_diagnostics() on GEVFit/GPDFit/POTFit; ReturnLevels.plot(); IDFFit.plot(). No GEVFit.plot().
 - Do not put IDFCurves.jl author names in new public text; see NOTICE.
 - Do not add a public planning document or a benchmark suite to this repository.

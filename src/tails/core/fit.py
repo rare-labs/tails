@@ -47,6 +47,12 @@ class ReturnLevels:
             df["upper"] = np.asarray(self.upper).ravel()
         return df
 
+    def plot(self, ax=None, index: int = 0, **kwargs):
+        """Plot the estimate against return period, with a CI ribbon if present."""
+        from ..plotting import plot_return_levels
+
+        return plot_return_levels(self, ax=ax, index=index, **kwargs)
+
 
 @dataclass
 class _FitBase:
@@ -133,6 +139,18 @@ class _FitBase:
             c = ", ".join(f"{n}={v:.4g}±{s:.2g}" for n, v, s in zip(self.param_names, self.coef.ravel(), self.se.ravel()))
             return head + f", {c}, loglik={float(self.loglik.ravel()[0]):.4f})"
         return head + f", converged={float(np.mean(self.converged)):.1%})"
+
+    def plot_diagnostics(self, index: int = 0, **kwargs):
+        """QQ / PP (with simulated bands), return-level curve with a CI ribbon, and density.
+
+        ``index`` selects one series from a batched fit (default 0). Requires the
+        ``plots`` extra (``pip install 'rare-tails[plots]'``). Stationary models only.
+
+        Returns ``(fig, axes)``.
+        """
+        from ..plotting import plot_fit_diagnostics
+
+        return plot_fit_diagnostics(self, index=index, **kwargs)
 
 
 # ------------------------------------------------------------- preparation

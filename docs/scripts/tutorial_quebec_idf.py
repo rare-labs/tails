@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
+from tails.plotting import apply_axes_style, color  # noqa: E402
+
 import tails  # noqa: E402
 from tails.datasets import DURATION_TAGS, DURATIONS_H, load_eccc_quebec  # noqa: E402
 from tails.idf import IDFData, fit_idf, scaling_test  # noqa: E402
@@ -129,27 +131,46 @@ w("Note that the pooled models give a lower 1-h 100-year intensity than both the
   "Québec City the 1979 1-h storm sits above the pooled curve. Pooling reduces variance but can bias "
   "individual durations — exactly the trade-off a coverage study should quantify.\n")
 
-fig, ax = plt.subplots(figsize=(7, 4))
+fig, ax = plt.subplots(figsize=(7.4, 4.4))
 x = np.arange(len(data.tags))
 for j, (k, (e, lo, hi)) in enumerate(cis.items()):
-    ax.errorbar(x + (j - 1.5) * 0.18, cis["copula Wald"][0][0, :, 0] if "copula" in k else ind.quantile(d, [100])[0, :, 0],
-                yerr=[(cis["copula Wald"][0][0, :, 0] if "copula" in k else ind.quantile(d, [100])[0, :, 0]) - lo[0, :, 0],
-                      hi[0, :, 0] - (cis["copula Wald"][0][0, :, 0] if "copula" in k else ind.quantile(d, [100])[0, :, 0])],
-                fmt="o", ms=3, capsize=2, label=k)
-ax.scatter(x, [ECCC_100[t] / dd for t, dd in zip(DURATION_TAGS, DURATIONS_H)], marker="x", color="k", label="ECCC Gumbel", zorder=5)
+    y = cis["copula Wald"][0][0, :, 0] if "copula" in k else ind.quantile(d, [100])[0, :, 0]
+    ax.errorbar(
+        x + (j - 1.5) * 0.16,
+        y,
+        yerr=[y - lo[0, :, 0], hi[0, :, 0] - y],
+        fmt="o",
+        ms=4,
+        capsize=2.5,
+        elinewidth=1.0,
+        color=color(j),
+        label=k,
+        zorder=3,
+    )
+ax.scatter(
+    x,
+    [ECCC_100[t] / dd for t, dd in zip(DURATION_TAGS, DURATIONS_H)],
+    marker="x",
+    s=36,
+    color="0.15",
+    label="ECCC Gumbel",
+    zorder=5,
+)
 ax.set_xticks(x, data.tags)
 ax.set_yscale("log")
-ax.set_ylabel("100-yr intensity (mm/h)")
-ax.set_title("Québec City (701S001): 100-year intensity and 95% intervals")
-ax.legend(fontsize=7)
+ax.set_ylabel("100-year intensity (mm/h)")
+ax.set_xlabel("Duration")
+ax.set_title("Québec City – Jean Lesage Intl (701S001): 100-year intensity and 95% intervals")
+apply_axes_style(ax)
+ax.legend(frameon=False, fontsize=8)
 fig.tight_layout()
-fig.savefig(IMG / "quebec_100yr_ci.png", dpi=130)
+fig.savefig(IMG / "quebec_100yr_ci.png", dpi=180)
 w("![100-year intervals](img/quebec_100yr_ci.png)\n")
 
-ax = gau.plot(periods=(2, 10, 25, 100))
-ax.set_title("Québec City IDF curves (d-GEV + Matérn Gaussian copula)")
+ax = gau.plot(periods=(2, 10, 25, 100), ci="hessian")
+ax.set_title("Québec City – Jean Lesage Intl (701S001), d-GEV + Matérn Gaussian copula")
 ax.figure.tight_layout()
-ax.figure.savefig(IMG / "quebec_idf_curves.png", dpi=130)
+ax.figure.savefig(IMG / "quebec_idf_curves.png", dpi=180)
 w("![IDF curves](img/quebec_idf_curves.png)\n")
 
 # 6 trend ------------------------------------------------------------------------------------------
@@ -182,14 +203,51 @@ w("```python\nstations = [IDFData.from_dataframe(g, year=\"year\", depth=True, n
 w(f"{len(sts)} stations with ≥ 8 years for every duration were fitted in **{t_all:.2f} s** "
   f"(after compilation); {allq.converged.mean():.0%} converged. The 100-year 1-h intensity ranges "
   f"from {q100.min():.0f} to {q100.max():.0f} mm/h (median {np.median(q100):.0f}).\n")
-fig, ax = plt.subplots(figsize=(6, 5))
-sc = ax.scatter(meta.lon, meta.lat, c=q100, cmap="viridis", s=25, vmin=np.quantile(q100, 0.05), vmax=np.quantile(q100, 0.95))
-fig.colorbar(sc, label="100-yr 1-h intensity (mm/h)")
-ax.set_xlabel("Longitude")
-ax.set_ylabel("Latitude")
+# Map figure: pip install contextily pyproj  (not required to use tails)
+import contextily as cx  # noqa: E402
+from pyproj import Transformer  # noqa: E402
+
+transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
+mx, my = transformer.transform(meta.lon.to_numpy(), meta.lat.to_numpy())
+fig, ax = plt.subplots(figsize=(7.2, 7.0))
+sc = ax.scatter(
+    mx,
+    my,
+    c=q100,
+    cmap="viridis",
+    s=32,
+    edgecolors="white",
+    linewidths=0.35,
+    vmin=np.quantile(q100, 0.05),
+    vmax=np.quantile(q100, 0.95),
+    zorder=3,
+)
+cb = fig.colorbar(sc, ax=ax, shrink=0.65, pad=0.02)
+cb.set_label("100-year 1-h intensity (mm/h)")
+pad = 0.10
+dx, dy = mx.max() - mx.min(), my.max() - my.min()
+ax.set_xlim(mx.min() - pad * dx, mx.max() + pad * dx)
+ax.set_ylim(my.min() - pad * dy, my.max() + pad * dy)
+# CartoDB Positron now requires an API key (xyzservices injects ?key=).
+# Esri's World Light Gray canvas is a similar light basemap and needs no key.
+src = cx.providers.Esri.WorldGrayCanvas
+credit = "Tiles © Esri — Esri, DeLorme, NAVTEQ"
+cx.add_basemap(ax, source=src, crs="EPSG:3857", attribution=False)
+ax.set_axis_off()
 ax.set_title("d-GEV 100-year 1-h rainfall, Québec ECCC stations")
+ax.text(
+    0.0,
+    -0.02,
+    credit,
+    transform=ax.transAxes,
+    ha="left",
+    va="top",
+    fontsize=7,
+    color="0.35",
+    clip_on=False,
+)
 fig.tight_layout()
-fig.savefig(IMG / "quebec_map_q100_1h.png", dpi=130)
+fig.savefig(IMG / "quebec_map_q100_1h.png", dpi=180)
 w("![Québec map](img/quebec_map_q100_1h.png)\n")
 w("## Caveats\n")
 w("- ECCC annual maxima mix station histories (composite records); check metadata before inference.\n"

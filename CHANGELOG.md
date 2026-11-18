@@ -22,5 +22,10 @@ because `tails` was already taken.
   Julia, batched across stations, with missing-data handling and bootstrap intervals.
 - xarray / Dask front-end, optional NumPyro posterior, and the ECCC IDF v3.40 Québec dataset plus
   a parser for any ECCC IDF file.
+- Built-in diagnostic plots (`fit.plot_diagnostics()`, `ReturnLevels.plot()`, `IDFFit.plot()` with
+  CI ribbons) behind the optional `plots` extra.
+- `tails.how_rare(series, value_or_date)` — return period, confidence interval, and a
+  plain-language sentence, with an optional chart.
+- `tails.datasets.eccc_daily` / `eccc_hourly` — MSC GeoMet OGC API downloaders with on-disk caching.
 
 [0.1.0]: https://github.com/rare-labs/tails/releases/tag/v0.1.0

@@ -11,7 +11,7 @@ tails.idf      Intensity-duration-frequency models (port of IDFCurves.jl)
 tails.records  Distribution-free record statistics
 tails.xarray   xarray / Dask wrappers for gridded and multi-station data
 tails.bayes    Optional NumPyro posterior sampling
-tails.datasets Bundled and downloadable real datasets (ECCC IDF)
+tails.datasets Bundled and downloadable real datasets (ECCC IDF and GeoMet)
 """
 
 from . import (
@@ -21,10 +21,11 @@ from . import (
 )
 from .core import *  # noqa: F401,F403
 from .core import __all__ as _core_all
+from .how_rare import HowRare, how_rare
 
 __version__ = "0.1.0"
 
-__all__ = ["core", "records", "__version__", *_core_all]
+__all__ = ["core", "records", "__version__", "how_rare", "HowRare", *_core_all]
 
 
 def __getattr__(name):  # lazy heavy submodules

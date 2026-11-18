@@ -7,10 +7,13 @@
   Québec station of ECCC's Engineering Climate Datasets IDF v3.40
   (2025-12-05), extracted with :func:`parse_eccc_idf`.
 * ``parse_eccc_idf(path_or_text)`` – parse any ECCC ``idf_v3-*.txt`` file.
+* ``eccc_daily(station, years)`` / ``eccc_hourly(station, years)`` – download
+  observations from the official MSC GeoMet OGC API
+  (https://api.weather.gc.ca), with on-disk caching.
 
 Source: Environment and Climate Change Canada,
-https://collaboration.cmc.ec.gc.ca/cmc/climate/Engineer_Climate/IDF/
-(Open Government Licence – Canada).
+https://collaboration.cmc.ec.gc.ca/cmc/climate/Engineer_Climate/IDF/ and
+https://api.weather.gc.ca (Open Government Licence – Canada).
 """
 
 from __future__ import annotations
@@ -21,7 +24,20 @@ from pathlib import Path
 
 import pandas as pd
 
-__all__ = ["parse_eccc_return_levels", "load_idfcurves", "load_eccc_quebec", "parse_eccc_idf", "DURATIONS_H", "DURATION_TAGS"]
+from .eccc import cache_dir, eccc_daily, eccc_hourly, eccc_stations
+
+__all__ = [
+    "parse_eccc_return_levels",
+    "load_idfcurves",
+    "load_eccc_quebec",
+    "parse_eccc_idf",
+    "eccc_daily",
+    "eccc_hourly",
+    "eccc_stations",
+    "cache_dir",
+    "DURATIONS_H",
+    "DURATION_TAGS",
+]
 
 DURATION_TAGS = ["5min", "10min", "15min", "30min", "1h", "2h", "6h", "12h", "24h"]
 DURATIONS_H = [5 / 60, 10 / 60, 15 / 60, 30 / 60, 1.0, 2.0, 6.0, 12.0, 24.0]

@@ -14,6 +14,7 @@ theme:
 nav:
   - Home: index.md
   - Quickstart: quickstart.md
+  - How-to: howto.md
   - Tutorial – Québec City IDF: tutorial_quebec_idf.md
   - Architecture: architecture.md
   - Landscape: landscape.md
