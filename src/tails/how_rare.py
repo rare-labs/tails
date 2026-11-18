@@ -81,7 +81,7 @@ def how_rare(
         the event. Requires matplotlib (``rare-tails[plots]``).
     unit, name
         Optional wording for the plain-language sentence, e.g. ``unit="mm"``,
-        ``name="Québec City"``.
+        ``unit="°C"`` or ``unit="km/h"``, and ``name="Québec City"``.
 
     Returns
     -------

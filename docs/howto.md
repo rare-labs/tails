@@ -112,12 +112,20 @@ peaks.summary(ci="profile")  # joint profile of excesses and the exceedance rate
 `ci="bootstrap"` match `POTFit.return_level`. An exponential model keeps ξ = 0
 inside the profile interval.
 
-## How rare was this storm?
+## How rare was this?
 
 `tails.how_rare(series, value_or_date)` fits a GEV (or a POT model) and
 returns the return period, a confidence interval, and a plain-language
 sentence. If `series` has a DatetimeIndex, you can pass a date instead of a
-number. Pass `plot=True` to mark the event on a return-level chart.
+number. Pass `plot=True` to mark the event on a return-level chart. `unit`
+is the label in that sentence (`"mm"`, `"°C"`, `"km/h"`, …), so the same
+call covers a rainfall storm, a heat extreme, or a wind extreme.
+
+### A rainfall storm
+
+Bundled Québec City 24-hour annual maxima (station `701S001`). The 24-hour
+column is stored as intensity (mm/h); the snippet converts it back to depth
+(mm).
 
 ```python
 import pandas as pd
@@ -143,11 +151,77 @@ A value of 105.4 mm in 2005 at Québec City is a 1-in-138-year event (95% CI: 30
 The 2005 24-hour total of 105.4 mm is a little above the 100-year level
 (102.1 mm, 95% profile interval 90.5–131.1 mm), so the return-period interval
 is wide — a 64-year record cannot pin down a 138-year event tightly, and the
-sentence says so. `ci="delta"` or `"bootstrap"` are also accepted. For
-peaks-over-threshold, pass `model="pot"` and a `threshold`; the same three
-intervals are available, and `"profile"` is the default there too.
+sentence says so.
 
 ![Return-level chart with the 2005 event marked](img/how_rare_2005.png)
+
+### A heat extreme
+
+The bundle ships rainfall, so this series is constructed. It is 48 annual
+maxima of daily maximum temperature, in °C: Weibull quantiles of a GEV
+(location 32 °C, scale 1.45 °C, shape −0.18), rounded to 0.1 °C, shuffled
+with a fixed seed, and the 2021 value set to 37.5 °C.
+
+```python
+import numpy as np
+import pandas as pd
+import tails
+
+years = np.arange(1978, 2026)
+p = (np.arange(1, len(years) + 1) - 0.5) / len(years)
+# Constructed GEV quantiles in °C.
+xi, loc, scale = -0.18, 32.0, 1.45
+tmax_c = np.round(loc + scale / xi * ((-np.log(p)) ** (-xi) - 1.0), 1)
+np.random.default_rng(11).shuffle(tmax_c)
+tmax_c[years == 2021] = 37.5
+heat = pd.Series(tmax_c, index=pd.to_datetime(years.astype(str), format="%Y"))
+result = tails.how_rare(heat, "2021-01-01", ci="profile", unit="°C")
+print(result.sentence)
+print(result.return_period, result.lower, result.upper)
+```
+
+```
+A value of 37.5 °C in 2021 is a 1-in-124-year event (95% CI: 20–4580 years).
+124.424...  20.438...  4579.87...
+```
+
+37.5 °C in 2021 is a 1-in-124-year event. The 95% profile interval is
+20–4580 years. Forty-eight annual maxima leave a return period longer than
+the series weakly determined, as with the 2005 rainfall total above.
+
+### A wind extreme
+
+The same kind of constructed series, in km/h: GEV quantiles with location
+82 km/h, scale 7.5 km/h and shape −0.12, and the 2019 value set to 118 km/h.
+
+```python
+import numpy as np
+import pandas as pd
+import tails
+
+years = np.arange(1978, 2026)
+p = (np.arange(1, len(years) + 1) - 0.5) / len(years)
+# Constructed GEV quantiles in km/h.
+xi, loc, scale = -0.12, 82.0, 7.5
+gust_kmh = np.round(loc + scale / xi * ((-np.log(p)) ** (-xi) - 1.0), 1)
+np.random.default_rng(19).shuffle(gust_kmh)
+gust_kmh[years == 2019] = 118.0
+wind = pd.Series(gust_kmh, index=pd.to_datetime(years.astype(str), format="%Y"))
+result = tails.how_rare(wind, "2019-01-01", ci="profile", unit="km/h")
+print(result.sentence)
+print(result.return_period, result.lower, result.upper)
+```
+
+```
+A value of 118 km/h in 2019 is a 1-in-154-year event (95% CI: 24–5155 years).
+154.147...  24.011...  5155.17...
+```
+
+118 km/h in 2019 is a 1-in-154-year event (95% profile interval 24–5155
+years). `ci="delta"` or `"bootstrap"` are also accepted, for these series as
+for the storm. For peaks-over-threshold, pass `model="pot"` and a
+`threshold`; the same three intervals are available, and `"profile"` is the
+default there too.
 
 ## Are these records happening more often than chance?
 

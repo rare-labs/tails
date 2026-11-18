@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Worked `tails.how_rare` examples beside the Québec City rainfall storm: a
+  constructed heat extreme (37.5 °C in 2021, a 1-in-124-year event) and a
+  constructed wind extreme (118 km/h in 2019, a 1-in-154-year event). The
+  bundle is rainfall, so both series are labeled as constructed.
+
 ## [0.1.0] — 2026-11-18
 
 First public release. The import is `import tails`; the distribution name on PyPI is `rare-tails`

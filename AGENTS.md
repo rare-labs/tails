@@ -27,7 +27,7 @@ Source: https://github.com/rare-labs/tails
 | IDF | `from tails.idf import IDFData, fit_idf, scaling_test` |
 | Bundled data | `from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf` |
 | ECCC / GeoMet | `from tails.datasets import eccc_daily, eccc_hourly` — `eccc_daily("701S001", 2020)` |
-| How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")` |
+| How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")`. `unit` is the sentence label (`"mm"`, `"°C"`, `"km/h"`, …) |
 | Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
 | Plots | `fit.plot_diagnostics()`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")`. Gridded IDF: `tx.fit_idf(intensity, year="year", duration="duration")`, then `tx.idf_quantile(ds, [1.0], [100])` |
@@ -61,6 +61,11 @@ years (`tails.how_rare` reports a 1-in-138-year event, 95% profile CI 30–1212 
 `fit_block_maxima` on the same series with `model="aic"` selects the Gumbel
 model (ξ fixed at 0; AIC 517.9 against 519.8). That 100-year level is 104.7 mm
 (95% profile CI 94.9–117.6 mm). `model="gev"` keeps the three-parameter fit.
+
+The how-to runs `tails.how_rare` on two constructed series as well (the
+bundle is rainfall): 37.5 °C in 2021 is a 1-in-124-year event (95% profile
+CI 20–4580 years), and 118 km/h in 2019 is a 1-in-154-year event (95%
+profile CI 24–5155 years).
 
 **IDF, same station:** `scaling_test(data, "simple")` ≈ 0.0079 (reject);
 `scaling_test(data, "general")` ≈ 0.78 (ok). `fit_idf(data, "general", "matern")`
