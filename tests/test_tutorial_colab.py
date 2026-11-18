@@ -37,6 +37,7 @@ def test_quebec_tutorial_colab_badge_opens_notebook():
     assert "load_eccc_quebec" in text
     assert 'ci="profile"' in text
     assert 'method="bootstrap"' in text
+    assert '[sys.executable, "-m", "pip", "install", "-q", "rare-tails[plots]"]' in text
     assert "rare-tails[plots] @ git+https://github.com/rare-labs/tails" in text
 
     for cell in nb["cells"]:

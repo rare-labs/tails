@@ -4,9 +4,7 @@
 periods, and intensity–duration–frequency (IDF) curves, for one series or for
 thousands at a time.
 
-Install with `pip install rare-tails` (the import is `import tails`). Until
-the first release is on PyPI, use
-`pip install "rare-tails @ git+https://github.com/rare-labs/tails"`.
+Install with `pip install rare-tails` (the import is `import tails`).
 
 ## What is this, and when should I use it?
 

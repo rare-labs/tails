@@ -13,8 +13,6 @@ Québec stations.
 
 pip install rare-tails
 
-Until the first release: pip install "rare-tails @ git+https://github.com/rare-labs/tails"
-
 ## Docs
 
 - [Home / Q&A](https://rare-labs.github.io/tails/): what it is, “how rare was this storm?”, fitting 1,000 stations, which distribution
