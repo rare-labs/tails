@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tails.xarray.fit_idf` fits IDF curves on a DataArray of rainfall intensities,
+  one batched fit per Dask chunk, the same way `fit_gev` reduces a time
+  dimension. The duration axis is hours, a timedelta, or an ECCC tag
+  (`5min` … `24h`); `depth=True` converts depths in mm to intensities.
+  `tails.xarray.idf_quantile` evaluates the fitted curves at chosen durations
+  and return periods. Parameters are the natural IDF parameters, with standard
+  errors from the observed Hessian.
 - `import tails.xclim` registers an optional backend on xclim frequency
   analysis (`xclim.compute.stats` in xclim 1.0 and later, `xclim.indices.stats`
   in xclim 0.x). `frequency_analysis(..., backend="tails", ci="profile")` and

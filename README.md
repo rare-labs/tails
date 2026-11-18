@@ -71,8 +71,9 @@ has a return period of about 138 years.
   On xclim 1.0 the function is `xclim.compute.stats.frequency_analysis`;
   on xclim 0.x it is `xclim.indices.stats.frequency_analysis`. The fit is
   one batched call. The parameter array stays in scipy order, with
-  genextreme `c` equal to −ξ. Non-stationary models and IDF curves stay
-  on `fit_gev` and `tails.idf`.
+  genextreme `c` equal to −ξ. Non-stationary models stay on `fit_gev`.
+  Station IDF curves stay on `tails.idf`; a DataArray of intensities is
+  `tails.xarray.fit_idf`.
 
 A wider comparison is in [docs/landscape.md](docs/landscape.md). A worked IDF
 example on the same Québec City station is in

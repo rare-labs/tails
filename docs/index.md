@@ -22,7 +22,8 @@ the one built around those plots. If you already work in [xclim](https://xclim.r
 `backend="tails"` and, when you want an interval, `ci="profile"`. On xclim
 1.0 the import is `xclim.compute.stats`; on xclim 0.x it is
 `xclim.indices.stats`. Genextreme's `c` in the parameter array equals −ξ.
-Non-stationary models and IDF curves stay on `tails.fit_gev` and `tails.idf`.
+Non-stationary models stay on `tails.fit_gev`. The xclim backend does not fit
+IDF curves; use `tails.idf` or, on a grid, `tails.xarray.fit_idf`.
 
 Start with the [Quickstart](quickstart.md) or the
 [Québec City IDF tutorial](tutorial_quebec_idf.md).
@@ -70,7 +71,8 @@ a short series.
   durations. Start with the general (d-GEV) scaling model; run `scaling_test`
   before you accept simple scaling. At Québec City the simple-scaling test
   p-value is 0.0079 (rejected) and the general-scaling p-value is 0.78
-  (compatible).
+  (compatible). On a DataArray, `tails.xarray.fit_idf` fits every other
+  coordinate (station, lat/lon, …) in one batched call.
 
 tails does not try to replace a general-purpose distribution library. If you
 need Wakeby, Kappa or Pearson III, look at scipy or lmoments3.
