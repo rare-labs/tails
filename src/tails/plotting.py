@@ -1,4 +1,4 @@
-"""Optional matplotlib helpers for diagnostic and IDF plots.
+"""Optional matplotlib helpers for diagnostic, threshold and IDF plots.
 
 Install the extra with ``pip install 'rare-tails[plots]'``.
 """
@@ -419,6 +419,182 @@ def _dist_funs(family, params, fit, index, is_pot):
         return np.where(x >= 0, out, np.nan)
 
     return ppf, cdf, pdf
+
+
+def _one_series(x) -> np.ndarray:
+    arr = np.asarray(x, dtype=np.float64)
+    if arr.ndim == 2 and 1 in arr.shape:
+        arr = np.ravel(arr)
+    if arr.ndim != 1:
+        raise ValueError("plot_threshold takes one series; pass a 1-d array")
+    if int(np.isfinite(arr).sum()) < 10:
+        raise ValueError("need at least 10 finite observations")
+    return arr
+
+
+def _with_unit(label: str, unit: str) -> str:
+    if not unit:
+        return label
+    return f"{label} ({unit})"
+
+
+def _default_thresholds(finite: np.ndarray) -> np.ndarray:
+    """Quantile grid with a block of exceedances left above the top candidate."""
+    n = int(finite.size)
+    order = np.sort(finite)
+    n_tail = int(min(40, max(8, n // 20)))
+    hi = float(order[max(0, n - n_tail - 1)])
+    lo = float(np.quantile(order, 0.50 if n >= 400 else 0.70))
+    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
+        lo = float(order[max(0, n // 5)])
+    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
+        raise ValueError("could not build a default threshold grid from this series; pass thresholds")
+    return np.linspace(lo, hi, 15)
+
+
+def _candidate_thresholds(x: np.ndarray, thresholds) -> np.ndarray:
+    finite = x[np.isfinite(x)]
+    if thresholds is None:
+        u = _default_thresholds(finite)
+    else:
+        u = np.asarray(thresholds, dtype=np.float64)
+        if u.ndim != 1:
+            raise ValueError("thresholds must be a 1-d array of candidate values")
+        if u.size == 0 or not np.all(np.isfinite(u)):
+            raise ValueError("thresholds must be finite")
+        u = np.unique(u)
+    n_exc = (finite[:, None] > u[None, :]).sum(axis=0)
+    u = u[n_exc >= 2]
+    if u.size < 2:
+        raise ValueError("need at least two thresholds with two or more exceedances")
+    return u
+
+
+def _check_plot_args(unit, alpha, n_boot) -> tuple[str, float, int]:
+    if unit is None:
+        unit = ""
+    elif not isinstance(unit, str):
+        raise TypeError("unit must be a string")
+    else:
+        unit = unit.strip()
+    alpha = float(alpha)
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must be between 0 and 1")
+    if isinstance(n_boot, bool) or not isinstance(n_boot, (int, np.integer)):
+        raise TypeError("n_boot must be an integer")
+    n_boot = int(n_boot)
+    if n_boot < 1:
+        raise ValueError("n_boot must be at least 1")
+    return unit, alpha, n_boot
+
+
+def _ci_label(alpha: float) -> str:
+    pct = 100.0 * (1.0 - alpha)
+    text = f"{pct:.0f}" if abs(pct - round(pct)) < 1e-8 else f"{pct:g}"
+    return f"{text}% CI"
+
+
+def _format_mark(value: float, unit: str) -> str:
+    text = f"{value:.4g}"
+    if unit:
+        text = f"{text} {unit}"
+    return f"ForwardStop ({text})"
+
+
+def _series_with_ribbon(ax, x, y, lo, hi, ci_label):
+    x = np.asarray(x, float)
+    y = np.asarray(y, float)
+    lo = np.asarray(lo, float)
+    hi = np.asarray(hi, float)
+    ok = np.isfinite(x) & np.isfinite(y) & np.isfinite(lo) & np.isfinite(hi)
+    ax.fill_between(
+        x,
+        np.where(ok, lo, np.nan),
+        np.where(ok, hi, np.nan),
+        color=color(0),
+        alpha=0.22,
+        linewidth=0,
+        zorder=2,
+        label=ci_label,
+    )
+    ax.plot(
+        x,
+        np.where(np.isfinite(y), y, np.nan),
+        color=color(0),
+        lw=1.6,
+        marker="o",
+        ms=4,
+        markerfacecolor=color(0),
+        markeredgecolor="white",
+        markeredgewidth=0.4,
+        zorder=3,
+    )
+
+
+def plot_threshold_figure(
+    x,
+    thresholds=None,
+    *,
+    unit: str = "",
+    alpha: float = 0.05,
+    n_boot: int = 199,
+    seed: int = 0,
+    figsize=(10.0, 3.7),
+    fig=None,
+):
+    """Draw mean excess, modified scale, shape, and the ForwardStop threshold."""
+    plt = require_matplotlib()
+    unit, alpha, n_boot = _check_plot_args(unit, alpha, n_boot)
+    series = _one_series(x)
+    u = _candidate_thresholds(series, thresholds)
+
+    from .core.threshold import mean_residual_life, parameter_stability, select_threshold
+
+    mrl = mean_residual_life(series, u, alpha=alpha)
+    stability = parameter_stability(series, u, alpha=alpha)
+    chosen = float(select_threshold(series, u, alpha=alpha, n_boot=n_boot, seed=seed).threshold)
+
+    if fig is None:
+        fig, axes = plt.subplots(1, 3, figsize=figsize, sharex=True)
+    else:
+        axes = np.asarray(fig.axes, dtype=object)
+        if axes.size < 3:
+            raise ValueError("fig needs at least three axes")
+        axes = axes[:3]
+    axes = np.asarray(axes, dtype=object).reshape(3)
+
+    xlabel = _with_unit("Threshold", unit)
+    mark = _format_mark(chosen, unit)
+    ribbon = _ci_label(alpha)
+    panels = (
+        ("Mean excess", _with_unit("Mean excess", unit), mrl["threshold"], mrl["mean_excess"], mrl["lower"], mrl["upper"]),
+        (
+            "Modified scale",
+            _with_unit("Modified scale", unit),
+            stability["threshold"],
+            stability["modified_scale"],
+            stability["modified_scale_lower"],
+            stability["modified_scale_upper"],
+        ),
+        (
+            "Shape",
+            r"Shape $\xi$",
+            stability["threshold"],
+            stability["shape"],
+            stability["shape_lower"],
+            stability["shape_upper"],
+        ),
+    )
+    for i, (ax, (title, ylabel, px, py, lo, hi)) in enumerate(zip(axes, panels)):
+        _series_with_ribbon(ax, px, py, lo, hi, ribbon if i == 0 else None)
+        ax.axvline(chosen, color=color(1), lw=1.25, ls="--", zorder=4, label=mark if i == 0 else None)
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        apply_axes_style(ax)
+    fig.legend(frameon=False, fontsize=8, loc="outside upper center", ncol=2)
+    fig.tight_layout()
+    return fig, axes
 
 
 def plot_return_levels(rl, ax=None, index: int = 0, **kwargs):

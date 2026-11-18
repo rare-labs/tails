@@ -86,6 +86,125 @@ def test_idf_plot_units_ribbons_and_empirical_legend():
     matplotlib.pyplot.close(ax.figure)
 
 
+def _gpd_sample(n=700, seed=0):
+    rng = np.random.default_rng(seed)
+    x = rng.exponential(scale=4.0, size=n)
+    x[::11] = np.nan
+    return x
+
+
+def _line_with_x(ax, x):
+    x = np.asarray(x, float)
+    for line in ax.get_lines():
+        xd = np.asarray(line.get_xdata(), float)
+        if xd.shape == x.shape and np.allclose(xd, x, equal_nan=True):
+            return line
+    raise AssertionError("estimate line not found")
+
+
+def _vline(ax, value):
+    for line in ax.get_lines():
+        xd = np.asarray(line.get_xdata(), float)
+        if xd.size == 2 and np.allclose(xd, value):
+            return line
+    raise AssertionError("ForwardStop line not found")
+
+
+def test_plot_threshold_draws_diagnostics_and_forwardstop():
+    import pandas as pd
+
+    x = _gpd_sample()
+    finite = x[np.isfinite(x)]
+    thresholds = np.quantile(finite, [0.85, 0.5, 0.7, 0.6, 0.75])
+    series = pd.Series(x, name="gauge")
+    fig, axes = tails.plot_threshold(series, thresholds, unit="mm", alpha=0.05, n_boot=29, seed=2)
+    assert axes.shape == (3,)
+    u = np.sort(np.unique(thresholds))
+    mrl = tails.mean_residual_life(x, u)
+    stability = tails.parameter_stability(x, u)
+    chosen = tails.select_threshold(x, u, n_boot=29, seed=2).threshold
+
+    mean_line = _line_with_x(axes[0], mrl["threshold"])
+    scale_line = _line_with_x(axes[1], stability["threshold"])
+    shape_line = _line_with_x(axes[2], stability["threshold"])
+    np.testing.assert_allclose(mean_line.get_ydata(), mrl["mean_excess"], equal_nan=True)
+    np.testing.assert_allclose(scale_line.get_ydata(), stability["modified_scale"], equal_nan=True)
+    np.testing.assert_allclose(shape_line.get_ydata(), stability["shape"], equal_nan=True)
+    for ax in axes:
+        _vline(ax, chosen)
+        assert any("PolyCollection" in c.__class__.__name__ for c in ax.collections)
+        assert ax.get_xlabel() == "Threshold (mm)"
+    assert axes[0].get_ylabel() == "Mean excess (mm)"
+    assert axes[1].get_ylabel() == "Modified scale (mm)"
+    assert axes[2].get_ylabel() == r"Shape $\xi$"
+    assert "mm" not in axes[2].get_ylabel()
+    legend = fig.legends[0]
+    labels = [t.get_text() for t in legend.get_texts()]
+    assert "95% CI" in labels
+    assert any(label.startswith("ForwardStop (") and label.endswith("mm)") for label in labels)
+    matplotlib.pyplot.close(fig)
+
+
+def test_plot_threshold_default_grid_and_blank_unit():
+    rng = np.random.default_rng(1)
+    x = rng.normal(size=500)
+    fig, axes = tails.plot_threshold(x, unit="", n_boot=9, seed=0)
+    assert axes.shape == (3,)
+    xd = np.asarray(_line_with_x(axes[0], axes[0].get_lines()[0].get_xdata()).get_xdata(), float)
+    assert 3 <= xd.size <= 15
+    assert np.all(np.diff(xd) > 0)
+    assert xd[0] >= np.nanmin(x) - 1e-8
+    assert xd[-1] < np.nanmax(x)
+    assert axes[0].get_xlabel() == "Threshold"
+    assert axes[0].get_ylabel() == "Mean excess"
+    assert "(" not in axes[0].get_ylabel()
+    _vline(axes[2], tails.select_threshold(x, xd, n_boot=9, seed=0).threshold)
+    matplotlib.pyplot.close(fig)
+
+
+def test_plot_threshold_docs_example_marks_10_85_mm():
+    """The how-to rainfall figure quotes ForwardStop at 10.85 mm."""
+    from scipy import stats
+
+    rng = np.random.default_rng(0)
+    body = rng.uniform(0.0, 10.0, size=5000)
+    excess = stats.genpareto.rvs(0.15, scale=6.0, size=700, random_state=rng)
+    rain = np.concatenate([body, 10.0 + excess])
+    thresholds = np.linspace(2.0, 25.0, 14)
+    fig, _axes = tails.plot_threshold(rain, thresholds, unit="mm")
+    labels = [t.get_text() for t in fig.legends[0].get_texts()]
+    assert "ForwardStop (10.85 mm)" in labels
+    shape = tails.parameter_stability(rain, thresholds)["shape"]
+    i = int(np.argmin(np.abs(thresholds - 10.846153846153847)))
+    np.testing.assert_allclose(shape[i], 0.12323037, rtol=1e-5, atol=1e-6)
+    matplotlib.pyplot.close(fig)
+
+
+def test_plot_threshold_rejects_bad_input():
+    x = np.arange(40.0)
+    with pytest.raises(ValueError, match="one series"):
+        tails.plot_threshold(np.ones((2, 40)))
+    with pytest.raises(ValueError, match="10 finite"):
+        tails.plot_threshold([1.0, np.nan, 2.0])
+    with pytest.raises(TypeError, match="unit"):
+        tails.plot_threshold(x, unit=3)
+    with pytest.raises(ValueError, match="two thresholds"):
+        tails.plot_threshold(x, [1e9, 1e10])
+
+
+def test_plot_threshold_reuses_figure():
+    x = np.random.default_rng(0).exponential(2.0, size=200)
+    fig, _ = matplotlib.pyplot.subplots(1, 3, figsize=(8, 3))
+    out, axes = tails.plot_threshold(x, np.quantile(x, [0.5, 0.7, 0.85]), unit="kN", n_boot=9, seed=1, fig=fig)
+    assert out is fig
+    assert axes[1].get_ylabel() == "Modified scale (kN)"
+    matplotlib.pyplot.close(fig)
+    bare, _ = matplotlib.pyplot.subplots()
+    with pytest.raises(ValueError, match="three axes"):
+        tails.plot_threshold(x, fig=bare, n_boot=9)
+    matplotlib.pyplot.close(bare)
+
+
 def _trend_line(ax):
     lines = ax.get_lines()
     assert len(lines) == 1
@@ -264,3 +383,5 @@ def test_plot_requires_matplotlib_message(monkeypatch):
     monkeypatch.setattr(builtins, "__import__", fake_import)
     with pytest.raises(ImportError, match="rare-tails\\[plots\\]"):
         p.require_matplotlib()
+    with pytest.raises(ImportError, match="rare-tails\\[plots\\]"):
+        tails.plot_threshold(np.arange(40.0), unit="mm")

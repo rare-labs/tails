@@ -87,7 +87,11 @@ pot.return_level([10, 50], ci="profile")  # or "delta", "bootstrap"
 ```
 
 `select_threshold` runs a batched ForwardStop procedure with Anderson–Darling
-p-values. `POTFit.return_level` takes the same `ci` values as a GEV fit.
+p-values. `plot_threshold(daily, unit="mm")` draws that threshold on the
+mean-excess ribbon and the modified-scale and shape plots; `unit` is the
+axis label, and the call needs `pip install "rare-tails[plots]"`. See the
+[how-to](howto.md#how-do-i-choose-a-threshold). `POTFit.return_level` takes
+the same `ci` values as a GEV fit.
 `"profile"` is the joint profile of the excesses and the exceedance rate;
 `"bootstrap"` resamples both and refits. An exponential model
 (`fixed_shape=0`) keeps ξ fixed in the profile interval.

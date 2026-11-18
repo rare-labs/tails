@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tails.plot_threshold` draws the mean-excess ribbon, the GPD modified scale
+  and shape, and the ForwardStop threshold. It takes one series and a unit
+  string for the axis labels, and needs the `plots` extra
+  (`pip install 'rare-tails[plots]'`), the same as `plot_diagnostics`.
 - `plot_diagnostics` on a non-stationary GEV draws the observations, the fitted
   return level along the covariate, and a delta, profile, or bootstrap ribbon.
   The covariate is the one passed to `fit_gev` — a year, a temperature index,
