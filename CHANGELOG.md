@@ -19,6 +19,12 @@ because `tails` was already taken.
 - Delta, profile-likelihood and parametric-bootstrap return-level intervals, all batched.
 - Threshold diagnostics and ForwardStop selection with batched bootstrap Anderson–Darling p-values;
   runs declustering; Ferro–Segers extremal index; record statistics.
+- `tails.records.record_breaks` and `foster_stuart` are the record-breaking
+  toolkit. `record_breaks` lists upper or lower records (missing values
+  skipped, ties not counted) and compares the count with the harmonic law,
+  including both tails. `foster_stuart` is the Foster–Stuart D and S test:
+  D for a drift toward higher or lower records, S for a change in spread.
+  `record_indicators` and `record_test` are unchanged.
 - `tails.idf`: a port of IDFCurves.jl (simple and general scaling, Gaussian and Student-t copulas,
   exponential and Matérn correlation, scaling test, Godambe sandwich intervals), validated against
   Julia, batched across stations, with missing-data handling and bootstrap intervals.

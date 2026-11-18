@@ -43,6 +43,18 @@ tails.fit_pot(data, threshold, npy=365.25, ...)
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold
 
+from tails.records import record_breaks, foster_stuart, record_indicators, record_test
+  record_breaks(x, kind="upper"|"lower") -> RecordBreaks
+    Last axis is the series. NaN is skipped and does not advance the trial.
+    A tie is not a record. The first finite value is a record.
+    .summary() one row per series: observed, expected (H_n), variance, ratio, p-values.
+    .events(series=0) one row per record: time, value, trial, records_so_far, expected_so_far.
+    pvalue is one-sided for more records than the harmonic law.
+  foster_stuart(x) -> FosterStuart
+    From trial 2 on, D = upper records − lower records (mean 0; positive is an upward drift).
+    S = upper + lower (mean sum_{t=2}^n 2/t). pvalue_up, pvalue_trend, pvalue_spread.
+  record_indicators(x, kind) and record_test(x, kind) are the same counts.
+
 from tails.idf import IDFData, fit_idf, scaling_test
   data = IDFData.from_eccc("701S001")
   fit_idf(data, "general"|"simple", "matern"|"exponential"|None)
@@ -111,6 +123,10 @@ fit = tails.fit_gev(y)  # y = the 24h column
 # Return period of 105.4 mm: 138.3 years.
 # tails.how_rare(depth, "2005-01-01", ci="profile", unit="mm", name="Québec City")
 #   "A value of 105.4 mm in 2005 at Québec City is a 1-in-138-year event (95% CI: 30–1212 years)."
+# record_breaks on the same 64 annual maxima: 7 upper records, expected 4.74
+# (ratio 1.48, one-sided p=0.16). Years: 1961, 1962, 1978, 1979, 1996, 1998, 2005
+# (61.7, 71.4, 78.9, 81.2, 83.0, 104.8, 105.4 mm).
+# foster_stuart: D=2 (pvalue_up=0.29), S=10 against 7.49 expected.
 
 1-hour annual maximum 59.9 mm in 1979: single-duration GEV return period
 129.1 years. 20- and 100-year 1-hour levels 39.67 and 56.75 mm (profile CIs
