@@ -91,8 +91,9 @@ example on the same Québec City station is in
   [NOTICE](NOTICE)): simple scaling and d-GEV, Gaussian and Student-t copulas,
   the scaling-model test, Wald / sandwich and bootstrap intervals. Station
   batches fit in one call.
-- **`tails.records`**, **`tails.xarray`**, **`tails.bayes`** (NumPyro),
-  **`tails.datasets`** (ECCC).
+- **`tails.records`** — which observations set a record, whether that is more
+  than the harmonic law allows, and the Foster–Stuart trend and spread tests.
+- **`tails.xarray`**, **`tails.bayes`** (NumPyro), **`tails.datasets`** (ECCC).
 
 On the three stations shipped with IDFCurves.jl, `tails.idf` reproduces the
 Julia estimates typically to 1e-9–1e-12 (see

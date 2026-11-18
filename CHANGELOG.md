@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tails.records.record_breaks` and `foster_stuart` are the record-breaking
+  toolkit. `record_breaks` lists upper or lower records (missing values
+  skipped, ties not counted) and compares the count with the harmonic law,
+  including both tails. `foster_stuart` is the Foster–Stuart D and S test:
+  D for a drift toward higher or lower records, S for a change in spread.
+  `record_indicators` and `record_test` are unchanged.
 - `tails.xarray.fit_idf` fits IDF curves on a DataArray of rainfall intensities,
   one batched fit per Dask chunk, the same way `fit_gev` reduces a time
   dimension. The duration axis is hours, a timedelta, or an ECCC tag
