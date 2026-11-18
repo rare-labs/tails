@@ -26,6 +26,30 @@ fitted density. For a batched fit, `index` selects the series (default 0).
 
 ![Diagnostic plots for Québec City 24-h annual maxima](img/diagnostics_701S001_24h.png)
 
+A non-stationary GEV uses the same method. The figure is one panel: the
+block maxima, the fitted return level along the covariate, and a confidence
+ribbon. `period` defaults to 2, the median of the fitted GEV. `ci` is
+`"delta"`, `"profile"` or `"bootstrap"`.
+
+The horizontal axis is the covariate passed to `fit_gev`. That can be a
+year, a temperature index, or any other series, on the location, the scale,
+or the shape. An array with no name is labelled "Covariate". A pandas
+column name is copied onto the axis. With more than one distinct covariate
+column, the points stay in observation order and the line is the return
+level at each row.
+
+```python
+import pandas as pd
+
+covariate = pd.Series(range(1961, 1961 + len(y)), name="year", dtype="float64")
+trend = tails.fit_gev(y, loc=covariate)
+fig, ax = trend.plot_diagnostics(ci="delta")  # or ci="profile"
+```
+
+`y` is the series from the stationary example above. The axes are the
+covariate and the block maximum. The same call with a column named
+`"temperature"` labels the axis "temperature".
+
 IDF curves use the same style — one line and a confidence ribbon per return
 period, on log–log axes in mm/h against duration in hours. The points are the
 empirical T-year intensities at each duration (Weibull plotting positions),
@@ -43,6 +67,42 @@ At Québec City the 100-year 1-hour intensity on this fit is 43.6 mm/h. The
 empirical 100-year point at 1 h is 59.9 mm/h — the 1979 storm, which sits
 above the pooled curve. `ci` can be `"hessian"`, `"sandwich"`, `"bootstrap"`,
 or `None` for the curves alone.
+
+## How do I choose a threshold?
+
+`plot_threshold` draws the usual checks for one series: the mean excess
+(mean residual life) with a confidence ribbon, the GPD modified scale
+σ − ξu and the shape ξ across candidate thresholds, and the ForwardStop
+choice as a dashed line. `unit` is the axis label. The plots extra is
+required, the same as `plot_diagnostics`:
+`pip install "rare-tails[plots]"`.
+
+```python
+import numpy as np
+from scipy import stats
+
+import tails
+
+rng = np.random.default_rng(0)
+body = rng.uniform(0.0, 10.0, size=5000)
+excess = stats.genpareto.rvs(0.15, scale=6.0, size=700, random_state=rng)
+rain = np.concatenate([body, 10.0 + excess])  # synthetic daily rainfall, mm
+thresholds = np.linspace(2.0, 25.0, 14)
+fig, axes = tails.plot_threshold(rain, thresholds, unit="mm")
+```
+
+Above a valid threshold the mean excess is linear and the modified scale and
+shape level off. ForwardStop (Bader, Yan & Zhang, 2018) keeps the lowest
+candidate that is not rejected. On this series that is 10.85 mm. The tail was
+drawn from a generalised Pareto distribution above 10 mm with shape 0.15; the
+fitted shape at 10.85 mm is 0.12, and the ribbon widens as the number of
+exceedances falls. Pass the chosen value to `fit_pot`.
+
+![Mean excess, modified scale and shape, with the ForwardStop threshold](img/threshold_diagnostics.png)
+
+Leave `thresholds` out for a default quantile grid. `alpha`, `n_boot` and
+`seed` are the same arguments as `mean_residual_life`, `parameter_stability`
+and `select_threshold`.
 
 ## How do I start from a datetime series?
 

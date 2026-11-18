@@ -42,6 +42,11 @@ tails.fit_pot(data, threshold, npy=365.25, ...)
 
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold
+tails.plot_threshold(x, thresholds=None, *, unit="", alpha=0.05, n_boot=199, seed=0)
+  One series (1-d array or pandas Series). Draws the mean-excess ribbon, the
+  modified scale σ − ξu and the shape ξ, and a dashed line at the ForwardStop
+  threshold. unit is an axis label ("mm", "kN", ...). Requires rare-tails[plots],
+  the same ImportError as plot_diagnostics. Returns (fig, axes), three panels.
 
 from tails.records import record_breaks, foster_stuart, record_indicators, record_test
   record_breaks(x, kind="upper"|"lower") -> RecordBreaks
@@ -157,6 +162,6 @@ single-station fit (102.0568 mm). Cap Tourmente 7041177 has nobs=11 and
 - First JAX call compiles (seconds); later calls are fast. Compiled kernels are cached on disk
   ($TAILS_CACHE/jax, default ~/.cache/tails/jax), so new sessions start warm. TAILS_JAX_CACHE=0 turns it off.
 - Last axis is the record; preceding axes are the batch.
-- Plot APIs: fit.plot_diagnostics() on GEVFit/GPDFit/POTFit; ReturnLevels.plot(); IDFFit.plot(). No GEVFit.plot().
+- Plot APIs: fit.plot_diagnostics() on GEVFit/GPDFit/POTFit; tails.plot_threshold(series, unit=...) for threshold choice; ReturnLevels.plot(); IDFFit.plot(). No GEVFit.plot(). All need rare-tails[plots].
 - Do not put IDFCurves.jl author names in new public text; see NOTICE.
 - Do not add a public planning document or a benchmark suite to this repository.

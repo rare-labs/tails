@@ -17,7 +17,7 @@ pip install rare-tails
 
 - [Home / Q&A](https://rare-labs.github.io/tails/): what it is, “how rare was this storm?”, fitting 1,000 stations, which distribution
 - [Quickstart](https://rare-labs.github.io/tails/quickstart/): copy-pasteable recipes
-- [How-to](https://rare-labs.github.io/tails/howto/): diagnostic plots, how_rare (rainfall, rates, fuel, claims, earthquakes), ECCC downloads
+- [How-to](https://rare-labs.github.io/tails/howto/): diagnostic plots, threshold choice, how_rare (rainfall, rates, fuel, claims, earthquakes), ECCC downloads
 - [Québec City IDF tutorial](https://rare-labs.github.io/tails/tutorial_quebec_idf/) ([Open in Colab](https://colab.research.google.com/github/rare-labs/tails/blob/main/docs/notebooks/tutorial_quebec_idf.ipynb))
 - [Landscape](https://rare-labs.github.io/tails/landscape/): comparison with other packages
 - [Validation](https://rare-labs.github.io/tails/validation/): tails.idf vs IDFCurves.jl

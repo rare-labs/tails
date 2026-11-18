@@ -16,7 +16,7 @@ from .distributions import (
 from .fit import GEVFit, GPDFit, POTFit, ReturnLevels, fit_gev, fit_gpd, fit_pot
 from .lmoments import gev_from_lmoments, gpd_from_lmoments, sample_lmoments
 from .optim import OptimResult, minimize
-from .threshold import ThresholdSelection, mean_residual_life, parameter_stability, select_threshold
+from .threshold import ThresholdSelection, mean_residual_life, parameter_stability, plot_threshold, select_threshold
 from .uncertainty import (
     bootstrap_coef,
     bootstrap_pot_return_level,
@@ -32,7 +32,7 @@ __all__ = [
     "GEVFit", "GPDFit", "POTFit", "ReturnLevels", "fit_gev", "fit_gpd", "fit_pot",
     "gev_from_lmoments", "gpd_from_lmoments", "sample_lmoments",
     "OptimResult", "minimize",
-    "ThresholdSelection", "mean_residual_life", "parameter_stability", "select_threshold",
+    "ThresholdSelection", "mean_residual_life", "parameter_stability", "plot_threshold", "select_threshold",
     "bootstrap_coef", "bootstrap_pot_return_level", "profile_covariate_return_level",
     "profile_pot_return_level", "profile_return_level",
 ]
