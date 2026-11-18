@@ -1,4 +1,4 @@
-"""Optional matplotlib helpers for diagnostic and IDF plots.
+"""Optional matplotlib helpers for diagnostic, threshold and IDF plots.
 
 Install the extra with ``pip install 'rare-tails[plots]'``.
 """
@@ -52,6 +52,144 @@ def _stationary_params(fit, index: int = 0) -> dict[str, float]:
     return out
 
 
+def _default_covariate_name(name: str) -> bool:
+    return len(name) > 1 and name[0] == "x" and name[1:].isdigit()
+
+
+def _covariate_axis_label(names: list[str]) -> str:
+    """Axis title from covariate names. Unnamed columns (``x0``, ``x1``, …) are not shown."""
+    pretty: list[str] = []
+    for name in names:
+        if _default_covariate_name(name) or name in {"", "None"}:
+            continue
+        if name not in pretty:
+            pretty.append(name)
+    if len(pretty) == 1:
+        return pretty[0]
+    return "Covariate"
+
+
+def _covariate_axis(fit, index: int) -> tuple[np.ndarray, str]:
+    """Horizontal axis for one series, in observation order.
+
+    One covariate column — including the same column on more than one
+    parameter — is drawn on that column's scale. A year, a temperature
+    index, or any other series the user passed in is treated the same way.
+    Several distinct columns stay in observation order: the curve is the
+    fitted level at each row.
+    """
+    B = int(np.prod(fit.batch_shape, dtype=int))
+    columns: list[np.ndarray] = []
+    names: list[str] = []
+    n_obs = None
+    for design, raw in zip(fit._designs, fit._raw):
+        if int(design.X.shape[-1]) <= 1:
+            continue
+        raw = np.asarray(raw, float)
+        if raw.ndim == 2:
+            cols = raw[:, 1:]
+        else:
+            cols = raw.reshape(B, -1, raw.shape[-1])[index, :, 1:]
+        if n_obs is None:
+            n_obs = int(cols.shape[0])
+        labels = [nm.split(":", 1)[1] if ":" in nm else nm for nm in design.names[1:]]
+        if len(labels) != cols.shape[1]:
+            labels = [f"x{j}" for j in range(cols.shape[1])]
+        for j in range(cols.shape[1]):
+            columns.append(np.asarray(cols[:, j], float))
+            names.append(labels[j])
+    if not columns or n_obs is None:
+        raise ValueError("plot_diagnostics found no covariate on this non-stationary fit")
+    same = all(np.allclose(columns[0], col) for col in columns[1:])
+    if same and np.unique(columns[0]).size >= 2:
+        return columns[0], _covariate_axis_label(names)
+    return np.arange(n_obs, dtype=float), "Observation"
+
+
+def _trend_curve(rl, index: int):
+    """Return level and bounds for one series, shape ``(n,)`` each."""
+    est = np.asarray(rl.estimate, float)
+    if est.ndim < 2:
+        raise ValueError("a non-stationary return level has shape (*batch, n, period)")
+    curve = est.reshape(-1, est.shape[-2], est.shape[-1])
+    if index < 0 or index >= curve.shape[0]:
+        raise IndexError(f"index {index} is outside the batch of {curve.shape[0]} series")
+    est_i = curve[index, :, 0]
+    lo = hi = None
+    if rl.lower is not None:
+        lo = np.asarray(rl.lower, float).reshape(curve.shape)[index, :, 0]
+        hi = np.asarray(rl.upper, float).reshape(curve.shape)[index, :, 0]
+    return est_i, lo, hi
+
+
+def plot_trend_diagnostics(
+    fit,
+    index: int = 0,
+    *,
+    ci: str | None = "delta",
+    period: float = 2.0,
+    alpha: float = 0.05,
+    n_boot: int = 500,
+    seed: int = 0,
+    profile_points: int = 41,
+    figsize=(7.2, 4.4),
+    fig=None,
+):
+    """Observations, fitted return level, and an interval along the covariate.
+
+    The curve is the ``period``-year level at each fitted row. The default
+    period is 2, the median of the GEV. ``ci`` is ``"delta"``, ``"profile"``,
+    ``"bootstrap"`` or ``None``, the same intervals as
+    :meth:`~tails.core.fit.GEVFit.return_level`. The horizontal axis is the
+    covariate passed to ``fit_gev``. A pandas column name is used when the
+    fit has one; an unnamed array is labelled ``Covariate``.
+    """
+    plt = require_matplotlib()
+    period = float(period)
+    y = _series_y(fit, index)
+    x, xlabel = _covariate_axis(fit, index)
+    if x.shape[0] != y.shape[0]:
+        raise ValueError(f"covariate length {x.shape[0]} does not match the series length {y.shape[0]}")
+    rl = fit.return_level(
+        [period],
+        ci=ci,
+        alpha=alpha,
+        n_boot=n_boot,
+        seed=seed,
+        profile_points=profile_points,
+    )
+    est, lo, hi = _trend_curve(rl, index)
+    if fig is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        ax = fig.axes[0] if fig.axes else fig.add_subplot(111)
+
+    order = np.argsort(x, kind="mergesort")
+    xs = x[order]
+    ax.plot(xs, est[order], color=color(0), lw=1.6, zorder=3, label=f"Fitted {period:g}-year level")
+    if lo is not None:
+        band = "95% CI" if rl.alpha == 0.05 else f"{100 * (1.0 - rl.alpha):.0f}% CI"
+        ax.fill_between(xs, lo[order], hi[order], color=color(0), alpha=0.22, linewidth=0, zorder=2, label=band)
+    finite = np.isfinite(y)
+    ax.scatter(
+        x[finite],
+        y[finite],
+        s=22,
+        color="0.15",
+        zorder=4,
+        edgecolors="white",
+        linewidths=0.4,
+        label="Observed",
+    )
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("Block maximum")
+    ax.set_title("Fitted trend")
+    ax.legend(frameon=False, fontsize=8)
+    apply_axes_style(ax)
+    fig.tight_layout()
+    return fig, ax
+
+
 def empirical_return_levels(y, periods, method: str = "weibull") -> np.ndarray:
     """Empirical T-year levels from a single sample via plotting positions."""
     x = np.sort(np.asarray(y, float)[np.isfinite(y)])
@@ -77,17 +215,47 @@ def plot_fit_diagnostics(
     periods=None,
     n_band: int = 200,
     seed: int = 0,
-    figsize=(8.2, 7.4),
+    figsize=None,
     fig=None,
+    period: float = 2.0,
+    alpha: float = 0.05,
+    n_boot: int = 500,
+    profile_points: int = 41,
 ):
-    """2×2 diagnostic figure for one series of a fitted GEV, GPD or POT model.
+    """Diagnostic figure for one series of a fitted GEV, GPD or POT model.
 
-    Panels: QQ and PP plots with a simulated pointwise 95% envelope, a
-    return-level plot with a CI ribbon, and a histogram plus fitted density.
+    A stationary fit draws a 2×2 figure: QQ and PP plots with a simulated
+    pointwise 95% envelope, a return-level plot with a CI ribbon, and a
+    histogram plus the fitted density.
+
+    A non-stationary GEV draws the observations, the fitted return level
+    along the covariate, and a confidence ribbon. ``period`` (default 2,
+    the median) selects that level. ``ci`` is ``"delta"``, ``"profile"``,
+    ``"bootstrap"`` or ``None``.
     """
     plt = require_matplotlib()
     if not fit.stationary:
-        raise ValueError("plot_diagnostics currently supports stationary models")
+        if fit.family != "gev":
+            raise ValueError(
+                "plot_diagnostics supports stationary models; "
+                "trend diagnostics are implemented for a non-stationary GEV"
+            )
+        if figsize is None:
+            figsize = (7.2, 4.4)
+        return plot_trend_diagnostics(
+            fit,
+            index=index,
+            ci=ci,
+            period=period,
+            alpha=alpha,
+            n_boot=n_boot,
+            seed=seed,
+            profile_points=profile_points,
+            figsize=figsize,
+            fig=fig,
+        )
+    if figsize is None:
+        figsize = (8.2, 7.4)
     y = _series_y(fit, index)
     x = y[np.isfinite(y)]
     if x.size < 2:
@@ -251,6 +419,182 @@ def _dist_funs(family, params, fit, index, is_pot):
         return np.where(x >= 0, out, np.nan)
 
     return ppf, cdf, pdf
+
+
+def _one_series(x) -> np.ndarray:
+    arr = np.asarray(x, dtype=np.float64)
+    if arr.ndim == 2 and 1 in arr.shape:
+        arr = np.ravel(arr)
+    if arr.ndim != 1:
+        raise ValueError("plot_threshold takes one series; pass a 1-d array")
+    if int(np.isfinite(arr).sum()) < 10:
+        raise ValueError("need at least 10 finite observations")
+    return arr
+
+
+def _with_unit(label: str, unit: str) -> str:
+    if not unit:
+        return label
+    return f"{label} ({unit})"
+
+
+def _default_thresholds(finite: np.ndarray) -> np.ndarray:
+    """Quantile grid with a block of exceedances left above the top candidate."""
+    n = int(finite.size)
+    order = np.sort(finite)
+    n_tail = int(min(40, max(8, n // 20)))
+    hi = float(order[max(0, n - n_tail - 1)])
+    lo = float(np.quantile(order, 0.50 if n >= 400 else 0.70))
+    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
+        lo = float(order[max(0, n // 5)])
+    if not np.isfinite(lo) or not np.isfinite(hi) or lo >= hi:
+        raise ValueError("could not build a default threshold grid from this series; pass thresholds")
+    return np.linspace(lo, hi, 15)
+
+
+def _candidate_thresholds(x: np.ndarray, thresholds) -> np.ndarray:
+    finite = x[np.isfinite(x)]
+    if thresholds is None:
+        u = _default_thresholds(finite)
+    else:
+        u = np.asarray(thresholds, dtype=np.float64)
+        if u.ndim != 1:
+            raise ValueError("thresholds must be a 1-d array of candidate values")
+        if u.size == 0 or not np.all(np.isfinite(u)):
+            raise ValueError("thresholds must be finite")
+        u = np.unique(u)
+    n_exc = (finite[:, None] > u[None, :]).sum(axis=0)
+    u = u[n_exc >= 2]
+    if u.size < 2:
+        raise ValueError("need at least two thresholds with two or more exceedances")
+    return u
+
+
+def _check_plot_args(unit, alpha, n_boot) -> tuple[str, float, int]:
+    if unit is None:
+        unit = ""
+    elif not isinstance(unit, str):
+        raise TypeError("unit must be a string")
+    else:
+        unit = unit.strip()
+    alpha = float(alpha)
+    if not 0.0 < alpha < 1.0:
+        raise ValueError("alpha must be between 0 and 1")
+    if isinstance(n_boot, bool) or not isinstance(n_boot, (int, np.integer)):
+        raise TypeError("n_boot must be an integer")
+    n_boot = int(n_boot)
+    if n_boot < 1:
+        raise ValueError("n_boot must be at least 1")
+    return unit, alpha, n_boot
+
+
+def _ci_label(alpha: float) -> str:
+    pct = 100.0 * (1.0 - alpha)
+    text = f"{pct:.0f}" if abs(pct - round(pct)) < 1e-8 else f"{pct:g}"
+    return f"{text}% CI"
+
+
+def _format_mark(value: float, unit: str) -> str:
+    text = f"{value:.4g}"
+    if unit:
+        text = f"{text} {unit}"
+    return f"ForwardStop ({text})"
+
+
+def _series_with_ribbon(ax, x, y, lo, hi, ci_label):
+    x = np.asarray(x, float)
+    y = np.asarray(y, float)
+    lo = np.asarray(lo, float)
+    hi = np.asarray(hi, float)
+    ok = np.isfinite(x) & np.isfinite(y) & np.isfinite(lo) & np.isfinite(hi)
+    ax.fill_between(
+        x,
+        np.where(ok, lo, np.nan),
+        np.where(ok, hi, np.nan),
+        color=color(0),
+        alpha=0.22,
+        linewidth=0,
+        zorder=2,
+        label=ci_label,
+    )
+    ax.plot(
+        x,
+        np.where(np.isfinite(y), y, np.nan),
+        color=color(0),
+        lw=1.6,
+        marker="o",
+        ms=4,
+        markerfacecolor=color(0),
+        markeredgecolor="white",
+        markeredgewidth=0.4,
+        zorder=3,
+    )
+
+
+def plot_threshold_figure(
+    x,
+    thresholds=None,
+    *,
+    unit: str = "",
+    alpha: float = 0.05,
+    n_boot: int = 199,
+    seed: int = 0,
+    figsize=(10.0, 3.7),
+    fig=None,
+):
+    """Draw mean excess, modified scale, shape, and the ForwardStop threshold."""
+    plt = require_matplotlib()
+    unit, alpha, n_boot = _check_plot_args(unit, alpha, n_boot)
+    series = _one_series(x)
+    u = _candidate_thresholds(series, thresholds)
+
+    from .core.threshold import mean_residual_life, parameter_stability, select_threshold
+
+    mrl = mean_residual_life(series, u, alpha=alpha)
+    stability = parameter_stability(series, u, alpha=alpha)
+    chosen = float(select_threshold(series, u, alpha=alpha, n_boot=n_boot, seed=seed).threshold)
+
+    if fig is None:
+        fig, axes = plt.subplots(1, 3, figsize=figsize, sharex=True)
+    else:
+        axes = np.asarray(fig.axes, dtype=object)
+        if axes.size < 3:
+            raise ValueError("fig needs at least three axes")
+        axes = axes[:3]
+    axes = np.asarray(axes, dtype=object).reshape(3)
+
+    xlabel = _with_unit("Threshold", unit)
+    mark = _format_mark(chosen, unit)
+    ribbon = _ci_label(alpha)
+    panels = (
+        ("Mean excess", _with_unit("Mean excess", unit), mrl["threshold"], mrl["mean_excess"], mrl["lower"], mrl["upper"]),
+        (
+            "Modified scale",
+            _with_unit("Modified scale", unit),
+            stability["threshold"],
+            stability["modified_scale"],
+            stability["modified_scale_lower"],
+            stability["modified_scale_upper"],
+        ),
+        (
+            "Shape",
+            r"Shape $\xi$",
+            stability["threshold"],
+            stability["shape"],
+            stability["shape_lower"],
+            stability["shape_upper"],
+        ),
+    )
+    for i, (ax, (title, ylabel, px, py, lo, hi)) in enumerate(zip(axes, panels)):
+        _series_with_ribbon(ax, px, py, lo, hi, ribbon if i == 0 else None)
+        ax.axvline(chosen, color=color(1), lw=1.25, ls="--", zorder=4, label=mark if i == 0 else None)
+        ax.set_title(title)
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel(ylabel)
+        apply_axes_style(ax)
+    fig.legend(frameon=False, fontsize=8, loc="outside upper center", ncol=2)
+    fig.tight_layout()
+    return fig, axes
 
 
 def plot_return_levels(rl, ax=None, index: int = 0, **kwargs):

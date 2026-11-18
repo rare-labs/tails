@@ -26,6 +26,30 @@ fitted density. For a batched fit, `index` selects the series (default 0).
 
 ![Diagnostic plots for Québec City 24-h annual maxima](img/diagnostics_701S001_24h.png)
 
+A non-stationary GEV uses the same method. The figure is one panel: the
+block maxima, the fitted return level along the covariate, and a confidence
+ribbon. `period` defaults to 2, the median of the fitted GEV. `ci` is
+`"delta"`, `"profile"` or `"bootstrap"`.
+
+The horizontal axis is the covariate passed to `fit_gev`. That can be a
+year, a temperature index, or any other series, on the location, the scale,
+or the shape. An array with no name is labelled "Covariate". A pandas
+column name is copied onto the axis. With more than one distinct covariate
+column, the points stay in observation order and the line is the return
+level at each row.
+
+```python
+import pandas as pd
+
+covariate = pd.Series(range(1961, 1961 + len(y)), name="year", dtype="float64")
+trend = tails.fit_gev(y, loc=covariate)
+fig, ax = trend.plot_diagnostics(ci="delta")  # or ci="profile"
+```
+
+`y` is the series from the stationary example above. The axes are the
+covariate and the block maximum. The same call with a column named
+`"temperature"` labels the axis "temperature".
+
 IDF curves use the same style — one line and a confidence ribbon per return
 period, on log–log axes in mm/h against duration in hours. The points are the
 empirical T-year intensities at each duration (Weibull plotting positions),
@@ -103,6 +127,42 @@ ds = tx.fit_gev(annual_max, dim="year")   # lat, lon, and the year of the maxima
 tails.plot_return_level_map(tx.return_level(ds, [20, 100]), period=100)
 ```
 
+## How do I choose a threshold?
+
+`plot_threshold` draws the usual checks for one series: the mean excess
+(mean residual life) with a confidence ribbon, the GPD modified scale
+σ − ξu and the shape ξ across candidate thresholds, and the ForwardStop
+choice as a dashed line. `unit` is the axis label. The plots extra is
+required, the same as `plot_diagnostics`:
+`pip install "rare-tails[plots]"`.
+
+```python
+import numpy as np
+from scipy import stats
+
+import tails
+
+rng = np.random.default_rng(0)
+body = rng.uniform(0.0, 10.0, size=5000)
+excess = stats.genpareto.rvs(0.15, scale=6.0, size=700, random_state=rng)
+rain = np.concatenate([body, 10.0 + excess])  # synthetic daily rainfall, mm
+thresholds = np.linspace(2.0, 25.0, 14)
+fig, axes = tails.plot_threshold(rain, thresholds, unit="mm")
+```
+
+Above a valid threshold the mean excess is linear and the modified scale and
+shape level off. ForwardStop (Bader, Yan & Zhang, 2018) keeps the lowest
+candidate that is not rejected. On this series that is 10.85 mm. The tail was
+drawn from a generalised Pareto distribution above 10 mm with shape 0.15; the
+fitted shape at 10.85 mm is 0.12, and the ribbon widens as the number of
+exceedances falls. Pass the chosen value to `fit_pot`.
+
+![Mean excess, modified scale and shape, with the ForwardStop threshold](img/threshold_diagnostics.png)
+
+Leave `thresholds` out for a default quantile grid. `alpha`, `n_boot` and
+`seed` are the same arguments as `mean_residual_life`, `parameter_stability`
+and `select_threshold`.
+
 ## How do I start from a datetime series?
 
 `fit_block_maxima` takes one series with timestamps, keeps the maximum of each
@@ -171,12 +231,21 @@ peaks.summary(ci="profile")  # joint profile of excesses and the exceedance rate
 `ci="bootstrap"` match `POTFit.return_level`. An exponential model keeps ξ = 0
 inside the profile interval.
 
-## How rare was this storm?
+## How rare was this?
 
 `tails.how_rare(series, value_or_date)` fits a GEV (or a POT model) and
 returns the return period, a confidence interval, and a plain-language
 sentence. If `series` has a DatetimeIndex, you can pass a date instead of a
-number. Pass `plot=True` to mark the event on a return-level chart.
+number. Pass `plot=True` to mark the event on a return-level chart. `unit`
+is the label in that sentence, so the same call covers a rainfall depth, a
+yield move, a fuel price, an insurance claims week, or an earthquake
+magnitude.
+
+### A rainfall storm
+
+Bundled Québec City 24-hour annual maxima (station `701S001`). The 24-hour
+column is stored as intensity (mm/h); the snippet converts it back to depth
+(mm).
 
 ```python
 import pandas as pd
@@ -202,11 +271,176 @@ A value of 105.4 mm in 2005 at Québec City is a 1-in-138-year event (95% CI: 30
 The 2005 24-hour total of 105.4 mm is a little above the 100-year level
 (102.1 mm, 95% profile interval 90.5–131.1 mm), so the return-period interval
 is wide — a 64-year record cannot pin down a 138-year event tightly, and the
-sentence says so. `ci="delta"` or `"bootstrap"` are also accepted. For
+sentence says so.
+
+![Return-level chart with the 2005 event marked](img/how_rare_2005.png)
+
+The four series below are published annual maxima, copied here so the
+snippet runs without a download. Each one is a case where a return period
+is the decision: a rates stress, a fuel hedge, an insurance trust fund, a
+seismic catalog. `ci="delta"` or `"bootstrap"` are also accepted. For
 peaks-over-threshold, pass `model="pot"` and a `threshold`; the same three
 intervals are available, and `"profile"` is the default there too.
 
-![Return-level chart with the 2005 event marked](img/how_rare_2005.png)
+### A Treasury yield move
+
+A desk that holds Treasury bonds needs a one-day stress in yield, in basis
+points, because that move is the loss on the book. The series is the largest
+rise each year in the US 10-year par yield, from one published fixing to the
+next, 1990–2025. Source: U.S. Department of the Treasury, Daily Treasury Par
+Yield Curve Rates (public domain),
+[10-year column](https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve).
+
+The largest step in the record is 39 basis points, from 6.77% on 31 March
+1994 to 7.16% on 4 April 1994. There is no fixing for 1 April 1994, so that
+step spans the holiday weekend.
+
+```python
+import pandas as pd
+import tails
+
+years = range(1990, 2026)
+# Annual maximum rise in the 10-year par yield, basis points.
+rise_bp = [
+    28, 11, 17, 15, 39, 18, 34, 18, 22, 21, 16, 25, 24, 24, 24, 14, 12, 16,
+    24, 24, 20, 19, 15, 21, 10, 15, 19, 10, 10, 11, 29, 16, 28, 15, 19, 14,
+]
+yields = pd.Series(rise_bp, index=pd.to_datetime([f"{y}-01-01" for y in years]))
+result = tails.how_rare(yields, "1994-01-01", ci="profile", unit="basis points")
+print(result.sentence)
+print(result.return_period, result.lower, result.upper)
+```
+
+```
+A value of 39 basis points in 1994 is a 1-in-74-year event (95% CI: 13–758 years).
+73.672...  12.891...  757.70...
+```
+
+Thirty-six annual maxima leave that 74-year stress between 13 and 758 years.
+The interval is the part a limit or a capital rule has to live with.
+
+### A fuel price
+
+A utility or a gas buyer hedges a spot price, in dollars per million Btu.
+The series is the highest daily Henry Hub spot price in each year,
+1997–2025. Source: U.S. Energy Information Administration, series RNGWHHD,
+Henry Hub Natural Gas Spot Price (public domain),
+[daily history](https://www.eia.gov/dnav/ng/hist/rngwhhdd.htm).
+
+The high is 23.86 USD per million Btu on 17 February 2021.
+
+```python
+import pandas as pd
+import tails
+
+years = range(1997, 2026)
+# Annual maximum of the daily Henry Hub spot price, USD per million Btu.
+price = [
+    4.71, 2.61, 3.10, 10.48, 10.31, 5.31, 18.48, 8.12, 14.84, 9.90,
+    8.16, 13.31, 6.10, 7.51, 4.92, 3.77, 4.52, 8.15, 3.32, 3.80,
+    3.71, 6.24, 4.25, 3.14, 23.86, 9.85, 3.78, 13.20, 9.86,
+]
+gas = pd.Series(price, index=pd.to_datetime([f"{y}-01-01" for y in years]))
+result = tails.how_rare(gas, "2021-01-01", ci="profile", unit="USD per million Btu")
+print(result.sentence)
+print(result.return_period, result.lower, result.upper)
+```
+
+```
+A value of 23.86 USD per million Btu in 2021 is a 1-in-24-year event (95% CI: 7.1–70 years).
+23.640...  7.081...  70.354...
+```
+
+On this fit the 2021 price is a 1-in-24-year event, with a 95% profile
+interval of 7.1–70 years. The fitted shape is about 0.50, so the tail is
+heavy: the worst price in a 29-year sample is not, by itself, a 100-year
+price. That is the difference a hedge has to be written against.
+
+### An unemployment-insurance week
+
+State unemployment-insurance funds pay the weekly initial-claims load. The
+series is the highest seasonally adjusted weekly initial claims in each
+year, 1967–2025, in millions of claims. Source: U.S. Employment and Training
+Administration, Initial Claims [ICSA], retrieved from FRED, Federal Reserve
+Bank of St. Louis (the ETA series is a federal statistic),
+[ICSA](https://fred.stlouisfed.org/series/ICSA).
+
+The week ending 4 April 2020 was 6.137 million claims. The next highest week
+in the record is 0.890 million, in 2021, and the 1982 and 2009 peaks are
+0.695 and 0.665 million.
+
+```python
+import pandas as pd
+import tails
+
+years = range(1967, 2026)
+# Annual maximum of weekly initial claims, millions, seasonally adjusted.
+claims = [
+    0.310, 0.251, 0.232, 0.374, 0.359, 0.350, 0.326, 0.537, 0.575, 0.423,
+    0.565, 0.429, 0.471, 0.642, 0.558, 0.695, 0.534, 0.439, 0.426, 0.416,
+    0.370, 0.361, 0.407, 0.474, 0.509, 0.564, 0.415, 0.406, 0.390, 0.426,
+    0.347, 0.376, 0.345, 0.364, 0.517, 0.479, 0.450, 0.380, 0.424, 0.349,
+    0.360, 0.587, 0.665, 0.507, 0.468, 0.446, 0.375, 0.345, 0.317, 0.290,
+    0.297, 0.252, 0.247, 6.137, 0.890, 0.250, 0.259, 0.258, 0.259,
+]
+ui = pd.Series(claims, index=pd.to_datetime([f"{y}-01-01" for y in years]))
+result = tails.how_rare(ui, "2020-01-01", ci="profile", unit="million claims")
+print(result.sentence)
+print(result.return_period, result.lower, result.upper)
+```
+
+```
+A value of 6.137 million claims in 2020 is a 1-in-6654-year event (95% CI: 4251–50099 years).
+6653.507...  4250.79...  50099.41...
+```
+
+A fund sized from the 1982 or 2009 peak was sized for a week near 0.7
+million claims. The stationary fit puts the April 2020 week at 6654 years,
+and the profile interval stays in the thousands (4251–50099). Fifty-nine
+years that contain one week of that size do not produce a tight period.
+That width is what the trust-fund question actually gets from this record.
+
+### An earthquake magnitude
+
+A seismic catalog answers how often the largest earthquake of the year
+reaches a given magnitude. The series is that annual maximum, moment
+magnitude (Mw), for 1950–2025. Source: U.S. Geological Survey earthquake
+catalog (public domain), events of magnitude at least 7. Every year in this
+window has its maximum inside that extract. The 22 May 1960 Valdivia
+earthquake is Mw 9.5.
+
+```python
+import pandas as pd
+import tails
+
+years = range(1950, 2026)
+# Annual maximum moment magnitude, USGS catalog.
+magnitude = [
+    8.60, 7.81, 9.00, 7.90, 7.80, 7.52, 7.70, 8.60, 8.30, 7.90,
+    9.50, 7.60, 7.47, 8.50, 9.20, 8.70, 8.10, 7.30, 8.20, 8.20,
+    8.00, 8.10, 8.00, 7.70, 7.60, 7.90, 8.00, 8.30, 7.70, 7.90,
+    7.90, 7.70, 7.29, 7.60, 7.60, 8.00, 8.00, 7.90, 7.80, 8.02,
+    7.80, 7.60, 7.80, 7.80, 8.30, 8.00, 8.09, 7.80, 8.10, 7.70,
+    8.00, 8.40, 7.90, 8.16, 9.10, 8.60, 8.30, 8.40, 7.90, 8.10,
+    8.80, 9.10, 8.60, 8.30, 8.20, 8.30, 7.90, 8.20, 8.20, 8.00,
+    7.80, 8.20, 7.60, 7.80, 7.50, 8.80,
+]
+quakes = pd.Series(magnitude, index=pd.to_datetime([f"{y}-01-01" for y in years]))
+result = tails.how_rare(quakes, "1960-01-01", ci="profile", unit="Mw")
+print(result.sentence)
+print(result.return_period, result.lower, result.upper)
+```
+
+```
+A value of 9.5 Mw in 1960 is a 1-in-123-year event (95% CI: 29–1004 years).
+123.447...  29.327...  1003.95...
+```
+
+Mw 9.5 in 1960 is a 1-in-123-year annual maximum on this fit. The 95%
+profile interval is 29–1004 years. Seventy-six years of the global maximum
+do not pin the period of a magnitude 9.5 earthquake any tighter than that.
+This is the catalog question (how often the year's largest event is this
+large). A design ground motion at a site is a further step.
 
 ## Are these records happening more often than chance?
 

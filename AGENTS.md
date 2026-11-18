@@ -22,14 +22,14 @@ Source: https://github.com/rare-labs/tails
 | Return levels + CI | `fit.return_level([20, 100], ci="profile")` — `"delta"`, `"profile"`, `"bootstrap"` |
 | Non-stationary GEV | `tails.fit_gev(y, loc=covariate, scale=..., shape=...)` |
 | GPD / POT | `tails.fit_gpd(excesses)` / `tails.fit_pot(series, threshold=..., npy=365.25)` |
-| Threshold choice | `tails.mean_residual_life`, `tails.parameter_stability`, `tails.select_threshold` |
+| Threshold choice | `tails.mean_residual_life`, `tails.parameter_stability`, `tails.select_threshold`, `tails.plot_threshold(series, unit="mm")` |
 | Declustering | `tails.decluster_runs`, `tails.extremal_index`, `tails.block_maxima` |
 | IDF | `from tails.idf import IDFData, fit_idf, scaling_test` |
 | Bundled data | `from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf` |
 | ECCC / GeoMet | `from tails.datasets import eccc_daily, eccc_hourly` — `eccc_daily("701S001", 2020)` |
-| How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")` |
+| How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")`. `unit` is the sentence label (`"mm"`, `"basis points"`, `"USD per million Btu"`, `"million claims"`, `"Mw"`, …) |
 | Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
-| Plots | `fit.plot_diagnostics()`, `fit.return_level(...).plot()`, `IDFFit.plot()`, `tails.plot_return_level_map(levels, lon, lat)` (`rare-tails[plots]`) |
+| Plots | `fit.plot_diagnostics()` (stationary 2×2, or a non-stationary GEV trend), `tails.plot_threshold(series, unit=...)`, `fit.return_level(...).plot()`, `IDFFit.plot()`, `tails.plot_return_level_map(levels, lon, lat)` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")`. Gridded IDF: `tx.fit_idf(intensity, year="year", duration="duration")`, then `tx.idf_quantile(ds, [1.0], [100])` |
 | xclim frequency analysis | `import tails.xclim`, then `frequency_analysis(da, "max", [20, 100], "genextreme", backend="tails", ci="profile")` from `xclim.compute.stats` (xclim ≥ 1) or `xclim.indices.stats` (xclim 0.x). The returned `c` is scipy's: `c = -ξ` for genextreme, `c = ξ` for genpareto |
 | Bayesian GEV | `from tails.bayes import fit_gev_bayes` (extra `rare-tails[bayes]`) |
@@ -37,7 +37,7 @@ Source: https://github.com/rare-labs/tails
 
 Submodules `idf`, `xarray`, `xclim`, `bayes`, `datasets` are imported lazily. `import tails`
 is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare` / `fit_block_maxima`
-/ `fit_peaks`.
+/ `fit_peaks` / `plot_threshold`.
 
 ## Common tasks
 
@@ -61,6 +61,15 @@ years (`tails.how_rare` reports a 1-in-138-year event, 95% profile CI 30–1212 
 `fit_block_maxima` on the same series with `model="aic"` selects the Gumbel
 model (ξ fixed at 0; AIC 517.9 against 519.8). That 100-year level is 104.7 mm
 (95% profile CI 94.9–117.6 mm). `model="gev"` keeps the three-parameter fit.
+
+The how-to also runs `tails.how_rare` on four public annual-maximum series
+outside rainfall. A 39-basis-point rise in the US 10-year par yield (Treasury,
+4 April 1994) is a 1-in-74-year event (95% profile CI 13–758 years). Henry
+Hub at 23.86 USD per million Btu (EIA RNGWHHD, 17 February 2021) is a
+1-in-24-year event (7.1–70). The US initial-claims week of 6.137 million
+(ETA via FRED ICSA, week ending 4 April 2020) is a 1-in-6654-year event
+(4251–50099). The 1960 Valdivia earthquake, Mw 9.5 (USGS), is a 1-in-123-year
+annual maximum (29–1004).
 
 **IDF, same station:** `scaling_test(data, "simple")` ≈ 0.0079 (reject);
 `scaling_test(data, "general")` ≈ 0.78 (ok). `fit_idf(data, "general", "matern")`
@@ -95,9 +104,14 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
   fixed for delta and profile intervals, including POT return levels and
   non-stationary GEV profiles. Bootstrap refits a free ξ, so `ci="bootstrap"`
   is rejected; use `"delta"` or `"profile"`.
-- **Plots.** `fit.plot_diagnostics()` (GEV/GPD/POT, stationary) and
-  `IDFFit.plot()` (curves + CI ribbons + empirical return-period points)
-  require `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
+- **Plots.** `fit.plot_diagnostics()` for a stationary GEV, GPD or POT (QQ, PP,
+  return level, density). A non-stationary GEV draws the observations, the
+  fitted return level along the covariate, and a delta or profile ribbon.
+  The x-axis is the covariate passed to `fit_gev` (a year, a temperature
+  index, or anything else). `tails.plot_threshold(series, unit="mm")` draws
+  the mean-excess ribbon, modified scale, shape, and the ForwardStop
+  threshold. `IDFFit.plot()` (curves + CI ribbons + empirical return-period
+  points) requires `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
   use `plot_diagnostics()` or `ReturnLevels.plot()`. A batch of return
   levels is `tails.plot_return_level_map(levels, lon, lat)` (or
   `ReturnLevels.plot_map`). Coordinates are the data's longitude and

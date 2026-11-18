@@ -160,12 +160,39 @@ class _FitBase:
         return head + f", converged={float(np.mean(self.converged)):.1%})"
 
     def plot_diagnostics(self, index: int = 0, **kwargs):
-        """QQ / PP (with simulated bands), return-level curve with a CI ribbon, and density.
+        """Diagnostic figure for one fitted series.
 
-        ``index`` selects one series from a batched fit (default 0). Requires the
-        ``plots`` extra (``pip install 'rare-tails[plots]'``). Stationary models only.
+        A stationary GEV, GPD or POT fit draws a 2×2 figure: QQ and PP plots
+        with a simulated pointwise envelope, a return-level curve with a
+        confidence ribbon, and a histogram with the fitted density.
 
-        Returns ``(fig, axes)``.
+        A non-stationary GEV draws the observations against the covariate, the
+        fitted return level along that covariate, and a confidence ribbon.
+        The covariate is whatever was passed to ``fit_gev`` — a year, a
+        temperature index, or any other series — on the location, the scale,
+        or the shape. ``period`` (default 2, the median) selects the level.
+        ``ci`` is ``"delta"`` (default), ``"profile"``, ``"bootstrap"`` or
+        ``None``.
+
+        Parameters
+        ----------
+        index
+            Series to plot from a batched fit. The default is 0.
+        **kwargs
+            ``ci``, ``period``, ``alpha``, ``n_boot``, ``seed`` and
+            ``profile_points`` are the return-level interval on a trend fit.
+            ``periods``, ``n_band`` and ``seed`` control the stationary panels.
+            ``figsize`` and ``fig`` override the canvas.
+
+        Returns
+        -------
+        tuple
+            ``(fig, axes)``. ``axes`` has shape (2, 2) for a stationary fit
+            and is the single trend axes for a non-stationary GEV.
+
+        Notes
+        -----
+        Requires the ``plots`` extra (``pip install 'rare-tails[plots]'``).
         """
         from ..plotting import plot_fit_diagnostics
 

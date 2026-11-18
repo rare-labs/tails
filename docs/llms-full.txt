@@ -42,6 +42,11 @@ tails.fit_pot(data, threshold, npy=365.25, ...)
 
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold
+tails.plot_threshold(x, thresholds=None, *, unit="", alpha=0.05, n_boot=199, seed=0)
+  One series (1-d array or pandas Series). Draws the mean-excess ribbon, the
+  modified scale σ − ξu and the shape ξ, and a dashed line at the ForwardStop
+  threshold. unit is an axis label ("mm", "kN", ...). Requires rare-tails[plots],
+  the same ImportError as plot_diagnostics. Returns (fig, axes), three panels.
 
 from tails.records import record_breaks, foster_stuart, record_indicators, record_test
   record_breaks(x, kind="upper"|"lower") -> RecordBreaks
@@ -62,7 +67,8 @@ from tails.idf import IDFData, fit_idf, scaling_test
   idf.quantile_ci(durations, periods, method="hessian"|"sandwich"|"bootstrap")
   idf.plot(periods=(2,10,25,100), ci="hessian")  # log-log curves, CI ribbons,
                                                  # empirical T-year points in mm/h vs hours
-  fit.plot_diagnostics(ci="profile")             # QQ/PP with bands, RL ribbon, density
+  fit.plot_diagnostics(ci="profile")             # stationary: QQ/PP, RL ribbon, density
+                                                 # non-stationary GEV: trend along the covariate
   rl.plot()                                      # ReturnLevels ribbon
   tails.plot_return_level_map(levels, lon, lat, period=100)
     One return level per location. Stations: scatter. A (lat, lon) grid: mesh.
@@ -132,6 +138,11 @@ fit = tails.fit_gev(y)  # y = the 24h column
 # Return period of 105.4 mm: 138.3 years.
 # tails.how_rare(depth, "2005-01-01", ci="profile", unit="mm", name="Québec City")
 #   "A value of 105.4 mm in 2005 at Québec City is a 1-in-138-year event (95% CI: 30–1212 years)."
+# Public how_rare examples in docs/howto.md (annual maxima; sources in that page):
+#   Treasury 10-year, 39 basis points in 1994: "A value of 39 basis points in 1994 is a 1-in-74-year event (95% CI: 13–758 years)."
+#   Henry Hub, 23.86 USD per million Btu in 2021: "A value of 23.86 USD per million Btu in 2021 is a 1-in-24-year event (95% CI: 7.1–70 years)."
+#   US initial claims, 6.137 million in 2020: "A value of 6.137 million claims in 2020 is a 1-in-6654-year event (95% CI: 4251–50099 years)."
+#   USGS Mw 9.5 in 1960: "A value of 9.5 Mw in 1960 is a 1-in-123-year event (95% CI: 29–1004 years)."
 # record_breaks on the same 64 annual maxima: 7 upper records, expected 4.74
 # (ratio 1.48, one-sided p=0.16). Years: 1961, 1962, 1978, 1979, 1996, 1998, 2005
 # (61.7, 71.4, 78.9, 81.2, 83.0, 104.8, 105.4 mm).
@@ -161,6 +172,6 @@ single-station fit (102.0568 mm). Cap Tourmente 7041177 has nobs=11 and
 - First JAX call compiles (seconds); later calls are fast. Compiled kernels are cached on disk
   ($TAILS_CACHE/jax, default ~/.cache/tails/jax), so new sessions start warm. TAILS_JAX_CACHE=0 turns it off.
 - Last axis is the record; preceding axes are the batch.
-- Plot APIs: fit.plot_diagnostics() on GEVFit/GPDFit/POTFit; ReturnLevels.plot(); IDFFit.plot(); tails.plot_return_level_map(levels, lon, lat) / ReturnLevels.plot_map. No GEVFit.plot(). The map takes coordinates from the data and does not assume a unit.
+- Plot APIs: fit.plot_diagnostics() on a stationary GEV/GPD/POT, or a non-stationary GEV trend (observations, fitted return level along the covariate, ribbon); tails.plot_threshold(series, unit=...) for threshold choice; ReturnLevels.plot(); IDFFit.plot(); tails.plot_return_level_map(levels, lon, lat) / ReturnLevels.plot_map. No GEVFit.plot(). All need rare-tails[plots]. The map takes longitude and latitude from the data; the colour is the return level in the units of the fit.
 - Do not put IDFCurves.jl author names in new public text; see NOTICE.
 - Do not add a public planning document or a benchmark suite to this repository.
