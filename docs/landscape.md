@@ -85,5 +85,8 @@ and source. Timings mentioned here were measured on one 8-vCPU VM.
 - **One engine, many subjects**: the same masked, batched machinery serves block maxima, POT with
   time-varying thresholds, IDF copula models, and record statistics; it is the base for planned multivariate, spatial, attribution and ML-assisted work.
 - **Labelled data**: an xarray/Dask front-end so a gridded dataset is one call, chunk-parallel.
+  `import tails.xclim` adds `backend="tails"` to xclim's `frequency_analysis`
+  (`xclim.compute.stats` on xclim 1.0, `xclim.indices.stats` on xclim 0.x),
+  including a profile-likelihood interval.
 - **Python, where Canadian hydrology and climate services work** (xclim, Ouranos, MELCCFP, ECCC), while
   crediting and numerically matching the Julia reference implementation of IDF models.

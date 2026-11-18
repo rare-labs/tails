@@ -1,250 +1,280 @@
-"""xclim-style frequency analysis: batched fits, ξ, and block extremes."""
+"""tails as a backend of xclim frequency analysis."""
 
+import inspect
+import subprocess
 import sys
 
 import numpy as np
 import pytest
 import xarray as xr
-from scipy import stats
 
 import tails
-from tails.core.distributions import gpd_ppf
-from tails.xclim import (
-    as_scipy_params,
-    block_extremes,
-    fa,
-    fit,
-    frequency_analysis,
-    parametric_quantile,
-)
+from tails.xclim import _levels_block, _parameters_block
 
 
 def _gumbel(rng, *shape):
-    return rng.gumbel(30, 8, size=shape)
+    return rng.gumbel(30.0, 8.0, size=shape)
+
+
+def _annual(values, **attrs):
+    import pandas as pd
+
+    values = np.asarray(values, dtype=np.float64)
+    time = pd.date_range("1980", periods=values.shape[-1], freq="YS")
+    dims = ("time",) if values.ndim == 1 else ("lat", "time")
+    attrs.setdefault("units", "mm")
+    return xr.DataArray(values, dims=dims, coords={"time": time}, attrs=attrs)
+
+
+def _stats():
+    pytest.importorskip("xclim")
+    import tails.xclim as tx
+
+    assert tx.register()
+    try:
+        import xclim.indices.stats as stats
+    except ImportError:
+        import xclim.compute.stats as stats
+    return stats
+
+
+def test_gev_parameter_vector_uses_scipy_c(rng):
+    y = _gumbel(rng, 60)
+    got = _parameters_block(y, "gev", "mle", None)
+    ref = tails.fit_gev(y)
+    np.testing.assert_allclose(got[0], -float(ref.params["shape"]))
+    np.testing.assert_allclose(got[1], float(ref.params["loc"]))
+    np.testing.assert_allclose(got[2], float(ref.params["scale"]))
+
+
+def test_gpd_parameter_vector_uses_scipy_c(rng):
+    raw = np.abs(rng.normal(size=200)) + 0.1 + 5.0
+    got = _parameters_block(raw, "gpd", "mle", 5.0)
+    ref = tails.fit_gpd(raw, threshold=5.0)
+    np.testing.assert_allclose(got[0], float(ref.params["shape"]))
+    np.testing.assert_allclose(got[1], 5.0)
+    np.testing.assert_allclose(got[2], float(ref.params["scale"]))
+
+
+def test_short_series_are_nan(rng):
+    short = np.array([1.0, np.nan, 2.0])
+    assert np.isnan(_parameters_block(short, "gev", "mle", None)).all()
+    batch = _gumbel(rng, 2, 40)
+    batch[1, 1:] = np.nan
+    got = _parameters_block(batch, "gev", "mle", None)
+    assert np.isfinite(got[0]).all()
+    assert np.isnan(got[1]).all()
+
+
+def test_min_level_is_the_reflected_maximum(rng):
+    y = _gumbel(rng, 80)
+    periods = np.array([10.0, 50.0])
+    hi = _levels_block(y, "gev", "mle", periods, "max", "delta", 0.05, 10, 0, None, None)
+    lo = _levels_block(-y, "gev", "mle", periods, "min", "delta", 0.05, 10, 0, None, None)
+    np.testing.assert_allclose(lo[..., 0], -hi[..., 0])
+    np.testing.assert_allclose(lo[..., 1], -hi[..., 2])
+    np.testing.assert_allclose(lo[..., 2], -hi[..., 1])
+
+
+def test_import_tails_does_not_register_the_backend():
+    script = (
+        "import sys, tails; "
+        "assert 'tails.xclim' not in sys.modules; "
+        "assert not [n for n in sys.modules if n == 'xclim' or n.startswith('xclim.')]"
+    )
+    subprocess.check_call([sys.executable, "-c", script])
+
+
+def test_user_import_selects_the_backend():
+    pytest.importorskip("xclim")
+    script = """
+import tails.xclim
+try:
+    from xclim.compute.stats import fa, fit, frequency_analysis
+except ImportError:
+    from xclim.indices.stats import fa, fit, frequency_analysis
+assert getattr(frequency_analysis, "_tails_backend", False)
+assert getattr(fit, "_tails_backend", False)
+assert getattr(fa, "_tails_backend", False)
+try:
+    import xclim.indices.stats as legacy
+except ModuleNotFoundError:
+    legacy = None
+if legacy is not None:
+    assert getattr(legacy.frequency_analysis, "_tails_backend", False)
+"""
+    subprocess.check_call([sys.executable, "-c", script])
 
 
 def test_fit_matches_fit_gev_and_keeps_dimension_order(rng):
-    y = _gumbel(rng, 3, 40, 2)
-    y[1, :5, 0] = np.nan
-    da = xr.DataArray(y, dims=("lat", "year", "lon"))
-    ds = fit(da, dist="gev", method="MLE", dim="year")
-    assert tuple(ds.params.dims) == ("lat", "dparams", "lon")
-    assert ds.attrs["shape_convention"] == "xi"
-    assert ds.attrs["tails_method"] == "mle"
+    xs = _stats()
+    y = _gumbel(rng, 2, 40, 3)
+    y[0, :4, 1] = np.nan
+    da = xr.DataArray(y, dims=("lat", "time", "lon"))
+    params = xs.fit(da, dist="genextreme", method="ML", backend="tails")
+    assert params.dims == ("lat", "dparams", "lon")
+    assert list(params.coords["dparams"].values) == ["c", "loc", "scale"]
+    assert params.attrs["scipy_dist"] == "genextreme"
+    assert params.attrs["shape_convention"] == "c=-xi"
+    assert params.attrs["tails_backend"] == "tails"
     ref = tails.fit_gev(np.moveaxis(y, 1, -1))
-    got = ds.params.transpose("lat", "lon", "dparams")
-    np.testing.assert_allclose(got.sel(dparams="loc"), ref.params["loc"], rtol=1e-10)
-    np.testing.assert_allclose(got.sel(dparams="scale"), ref.params["scale"], rtol=1e-10)
-    np.testing.assert_allclose(got.sel(dparams="shape"), ref.params["shape"], rtol=1e-10)
-    quantile = parametric_quantile(ds, [0.9, 0.99])
-    assert tuple(quantile.dims) == ("lat", "quantile", "lon")
-    np.testing.assert_allclose(ds.se.sel(dparams="loc").transpose("lat", "lon"), ref.se[..., 0], rtol=1e-8)
-    np.testing.assert_allclose(
-        ds.se.sel(dparams="scale").transpose("lat", "lon"),
-        ref.params["scale"] * ref.se[..., 1],
-        rtol=1e-8,
-    )
-    np.testing.assert_allclose(ds.nobs.transpose("lat", "lon"), ref.nobs)
-    assert bool(ds.converged.all())
+    got = params.transpose("lat", "lon", "dparams")
+    np.testing.assert_allclose(got.sel(dparams="c"), -ref.params["shape"])
+    np.testing.assert_allclose(got.sel(dparams="loc"), ref.params["loc"])
+    np.testing.assert_allclose(got.sel(dparams="scale"), ref.params["scale"])
 
 
-def test_nan_and_short_series_stay_nan(rng):
-    y = _gumbel(rng, 2, 25)
-    y[0] = np.nan
-    da = xr.DataArray(y, dims=("station", "year"))
-    ds = fit(da, dim="year")
-    assert np.isnan(ds.params.sel(dparams="loc").values[0])
-    assert not bool(ds.converged.values[0])
-    solo = tails.fit_gev(y[1])
-    np.testing.assert_allclose(ds.params.isel(station=1).sel(dparams="loc"), solo.params["loc"], rtol=1e-8)
-    short = fit(xr.DataArray([1.0, 2.0, np.nan], dims="time"))
-    assert np.isnan(float(short.params.sel(dparams="loc")))
-    assert int(short.nobs) == 2
-    assert not bool(short.converged)
+def test_parametric_quantile_matches_fa_and_scipy(rng):
+    xs = _stats()
+    from scipy.stats import genextreme
 
-
-def test_pwm_matches_lmom_and_gmle_runs(rng):
-    y = _gumbel(rng, 4, 30)
-    da = xr.DataArray(y, dims=("station", "year"))
-    pwm = fit(da, method="PWM", dim="year")
-    ref = tails.fit_gev(y, method="lmom")
-    np.testing.assert_allclose(pwm.params.sel(dparams="shape"), ref.params["shape"], rtol=1e-10)
-    assert np.isnan(pwm.se.sel(dparams="shape").values).all()
-    gmle = fit(da, method="GMLE", dim="year")
-    assert bool(gmle.converged.all())
-    assert gmle.attrs["method"] == "GMLE"
-
-
-def test_gpd_threshold_shape_matches_fit_gpd(rng):
-    excess = stats.genpareto.rvs(0.2, scale=2, size=500, random_state=rng)
-    excess = excess[excess > 0]
-    raw = excess + 4.0
-    da = xr.DataArray(raw, dims="time")
-    ds = fit(da, dist="genpareto", threshold=4)
-    ref = tails.fit_gpd(excess)
-    assert float(ds.params.sel(dparams="loc")) == 4.0
-    assert np.isnan(float(ds.se.sel(dparams="loc")))
-    np.testing.assert_allclose(ds.params.sel(dparams="scale"), ref.params["scale"], rtol=1e-8)
-    np.testing.assert_allclose(ds.params.sel(dparams="shape"), ref.params["shape"], rtol=1e-8)
-    assert float(ds.params.sel(dparams="shape")) > 0.05
-    assert int(ds.nobs) == excess.size
-    level = fa(da, [20, 100], dist="gpd", threshold=4)
-    q = 1.0 - 1.0 / np.array([20.0, 100.0])
-    expected = np.asarray(gpd_ppf(q, ref.params["scale"], ref.params["shape"])) + 4.0
-    np.testing.assert_allclose(np.asarray(level), expected, rtol=1e-6)
-    plain = fit(xr.DataArray(excess, dims="time"), dist="genpareto")
-    assert float(plain.params.sel(dparams="loc")) == 0.0
-
-
-def test_as_scipy_params_flips_gev_shape_only():
-    y = stats.genextreme.rvs(-0.2, loc=40, scale=8, size=200, random_state=0)
-    ds = fit(xr.DataArray(y, dims="time"))
-    shape = float(ds.params.sel(dparams="shape"))
-    assert shape > 0.05
-    sp = as_scipy_params(ds)
-    assert tuple(str(v) for v in sp.dparams.values) == ("c", "loc", "scale")
-    assert sp.attrs["scipy_dist"] == "genextreme"
-    assert sp.attrs["shape_convention"] == "scipy_c"
-    c = float(sp.sel(dparams="c"))
-    assert c == pytest.approx(-shape)
-    q = 0.9
-    ours = float(parametric_quantile(ds, q).item())
-    theirs = stats.genextreme.ppf(q, c, loc=float(sp.sel(dparams="loc")), scale=float(sp.sel(dparams="scale")))
-    assert ours == pytest.approx(theirs, rel=1e-6, abs=1e-6)
-
-    excess = stats.genpareto.rvs(0.2, scale=3, size=400, random_state=1)
-    gpd = fit(xr.DataArray(excess, dims="time"), dist="genpareto")
-    spg = as_scipy_params(gpd.params)
-    assert spg.attrs["scipy_dist"] == "genpareto"
-    assert float(spg.sel(dparams="c")) == pytest.approx(float(gpd.params.sel(dparams="shape")))
-    q = 0.8
-    ours = float(parametric_quantile(gpd, q).item())
-    theirs = stats.genpareto.ppf(
-        q,
-        float(spg.sel(dparams="c")),
-        loc=float(spg.sel(dparams="loc")),
-        scale=float(spg.sel(dparams="scale")),
-    )
-    assert ours == pytest.approx(theirs, rel=1e-6, abs=1e-6)
-
-
-def test_fa_quantiles_and_negated_minima(rng):
-    y = _gumbel(rng, 50)
-    da = xr.DataArray(y, dims="year", attrs={"units": "mm"})
-    level = fa(da, [100, 20], dim="year")
-    assert tuple(level.dims) == ("return_period",)
-    np.testing.assert_array_equal(level.return_period.values, [100, 20])
-    assert float(level.sel(return_period=100)) > float(level.sel(return_period=20))
+    da = _annual(_gumbel(rng, 70), units="mm")
+    params = xs.fit(da, "genextreme", backend="tails")
+    level = xs.fa(da, 100, dist="genextreme", backend="tails")
+    quantile = xs.parametric_quantile(params, 1.0 - 1.0 / 100.0)
+    np.testing.assert_allclose(np.asarray(level).ravel(), np.asarray(quantile).ravel(), rtol=1e-6, atol=1e-6)
+    c, loc, scale = (float(params.sel(dparams=name)) for name in ("c", "loc", "scale"))
+    scipy_level = genextreme.isf(1.0 / 100.0, c, loc=loc, scale=scale)
+    np.testing.assert_allclose(float(np.asarray(level).ravel()[0]), scipy_level, rtol=1e-6, atol=1e-6)
     assert level.attrs["units"] == "mm"
-    q = 1.0 - 1.0 / np.array([100.0, 20.0])
-    via_fit = parametric_quantile(fit(da, dim="year"), q)
-    np.testing.assert_allclose(via_fit.values, level.values, rtol=1e-10)
-    hi = fa(da, [20, 100], mode="max", dim="year")
-    lo = fa(-da, [20, 100], mode="min", dim="year")
-    np.testing.assert_allclose(lo.values, -hi.values, rtol=1e-10)
-    assert lo.attrs["mode"] == "min"
+    assert quantile.attrs.get("units") == "mm"
+    ref = tails.fit_gev(np.asarray(da)).return_level(100)
+    np.testing.assert_allclose(float(np.asarray(level).ravel()[0]), float(np.asarray(ref.estimate).ravel()[0]))
 
 
-def test_gev_intervals_bracket_the_estimate(rng):
-    y = stats.genextreme.rvs(-0.1, loc=30, scale=8, size=60, random_state=rng)
-    da = xr.DataArray(y, dims="year", attrs={"units": "mm"})
-    for method in ("delta", "profile", "bootstrap"):
-        out = fa(da, [10, 100], ci=method, n_boot=100, dim="year")
-        assert np.all(out.lower < out.return_level), method
-        assert np.all(out.return_level < out.upper), method
-        assert out.attrs["ci"] == method
-        assert out.return_level.attrs["units"] == "mm"
+def test_profile_and_delta_intervals_bracket_the_estimate(rng):
+    xs = _stats()
+    from scipy.stats import genextreme
+
+    y = genextreme.rvs(-0.1, loc=40.0, scale=8.0, size=80, random_state=12345)
+    da = _annual(y)
+    for method in ("delta", "profile"):
+        out = xs.fa(da, [10, 100], dist="genextreme", backend="tails", ci=method)
+        assert set(out.data_vars) == {"return_level", "lower", "upper"}
+        assert np.all(out.lower < out.return_level)
+        assert np.all(out.return_level < out.upper)
+    out = xs.frequency_analysis(da, "max", [10, 100], "genextreme", backend="tails", ci="delta")
+    assert np.all(out.lower < out.return_level)
+    assert np.all(out.return_level < out.upper)
 
 
-def test_frequency_analysis_blocks_and_annual_path(rng):
+def test_bootstrap_interval_is_ordered(rng):
+    xs = _stats()
+    da = _annual(_gumbel(rng, 60))
+    out = xs.fa(da, [20], dist="genextreme", backend="tails", ci="bootstrap", n_boot=40, seed=1)
+    assert np.all(np.isfinite(out.lower))
+    assert np.all(out.lower < out.upper)
+
+
+def test_default_backend_calls_xclim(rng):
+    xs = _stats()
+    da = _annual(_gumbel(rng, 40))
+    wrapped = xs.fit(da, "genextreme")
+    original = xs.fit.__wrapped__(da, "genextreme")
+    np.testing.assert_allclose(wrapped.values, original.values)
+    again = xs.fit(da, "genextreme", backend="xclim")
+    np.testing.assert_allclose(again.values, original.values)
+    level = xs.frequency_analysis(da, "max", 20, "genextreme")
+    raw = xs.frequency_analysis.__wrapped__(da, "max", 20, "genextreme")
+    np.testing.assert_allclose(level.values, raw.values)
+
+
+def test_frequency_analysis_uses_xclim_blocks(rng):
+    xs = _stats()
     import pandas as pd
 
-    time = pd.date_range("2000-12-01", "2002-02-28", freq="D")
-    vals = np.zeros(len(time))
-    idx = pd.DatetimeIndex(time)
-    vals[idx == "2000-12-15"] = 10
-    vals[idx == "2001-01-15"] = 30
-    vals[idx == "2001-02-15"] = 20
-    vals[idx == "2001-07-01"] = 100
-    vals[idx == "2001-12-20"] = 5
-    vals[idx == "2002-01-10"] = 4
-    da = xr.DataArray(vals, coords={"time": time}, dims="time")
-    winter = block_extremes(da, "max", season="DJF")
-    np.testing.assert_allclose(winter.values, [30, 5])
-    january = block_extremes(da, "max", month=1)
-    np.testing.assert_allclose(january.values, [30, 4])
-    summer = block_extremes(da, "max", season="JJA")
-    months = block_extremes(da, "max", month=[6, 7, 8])
-    np.testing.assert_allclose(summer.values, months.values)
-    assert float(summer.max()) == 100
+    try:
+        from xclim.compute.generic import statistics
+    except ImportError:
+        from xclim.indices.generic import statistics
 
-    annual = xr.DataArray(
-        _gumbel(rng, 36),
-        coords={"time": pd.date_range("1980-01-01", periods=36, freq="YS")},
-        dims="time",
-        attrs={"units": "mm"},
-    )
-    direct = fa(annual, [20, 100])
-    wrapped = frequency_analysis(annual, "max", [20, 100])
-    np.testing.assert_allclose(wrapped.values, direct.values, rtol=1e-10)
-    assert wrapped.attrs["units"] == "mm"
-    low = frequency_analysis(-annual, "min", [20, 100])
-    np.testing.assert_allclose(low.values, -direct.values, rtol=1e-10)
+    time = pd.date_range("2000-01-01", "2004-12-31", freq="D")
+    da = xr.DataArray(rng.random(time.size), coords={"time": time}, dims="time", name="pr", attrs={"units": "mm"})
+    blocks = statistics(da, "max", "YS", month=1)
+    direct = xs.fa(blocks, [10, 20], dist="genextreme", backend="tails")
+    wrapped = xs.frequency_analysis(da, "max", [10, 20], "genextreme", month=1, backend="tails")
+    np.testing.assert_allclose(wrapped, direct, equal_nan=True)
+
+    winter = statistics(da, "max", "YS-DEC", season="DJF")
+    direct = xs.fa(winter, [10], dist="genextreme", backend="tails")
+    wrapped = xs.frequency_analysis(da, "max", [10], "genextreme", season="DJF", backend="tails")
+    np.testing.assert_allclose(wrapped, direct, equal_nan=True)
+
+    rolled = da.rolling(time=3).mean(skipna=False)
+    blocks = statistics(rolled, "max", "YS")
+    direct = xs.fa(blocks, [10], dist="genextreme", backend="tails")
+    wrapped = xs.frequency_analysis(da, "max", [10], "genextreme", window=3, backend="tails")
+    np.testing.assert_allclose(wrapped, direct, equal_nan=True)
 
 
-def test_rolling_mean_before_the_block():
-    import pandas as pd
+def test_gpd_threshold_round_trip(rng):
+    xs = _stats()
+    from scipy.stats import genpareto
 
-    time = pd.date_range("2001-01-01", periods=10, freq="D")
-    vals = np.zeros(10)
-    vals[5] = 9.0
-    da = xr.DataArray(vals, coords={"time": time}, dims="time")
-    blocks = block_extremes(da, "max", window=3)
-    assert float(blocks.max()) == pytest.approx(3.0)
-
-
-def test_dask_fit_matches_numpy(rng):
-    pytest.importorskip("dask.array")
-    y = _gumbel(rng, 3, 4, 30)
-    da = xr.DataArray(y, dims=("lat", "lon", "year"))
-    eager = fit(da, dim="year")
-    lazy = fit(da.chunk({"lat": 1, "year": 10}), dim="year").compute()
-    np.testing.assert_allclose(lazy.params, eager.params, rtol=1e-8)
-    assert bool(lazy.converged.all())
+    raw = np.abs(rng.normal(size=250)) + 0.05 + 4.0
+    da = _annual(raw)
+    params = xs.fit(da, "genpareto", method="PWM", backend="tails", threshold=4.0)
+    ref = tails.fit_gpd(raw, threshold=4.0, method="lmom")
+    np.testing.assert_allclose(float(params.sel(dparams="c")), float(ref.params["shape"]))
+    np.testing.assert_allclose(float(params.sel(dparams="loc")), 4.0)
+    np.testing.assert_allclose(float(params.sel(dparams="scale")), float(ref.params["scale"]))
+    level = xs.fa(da, 20, dist="genpareto", backend="tails", threshold=4.0, method="PWM")
+    c, loc, scale = (float(params.sel(dparams=name)) for name in ("c", "loc", "scale"))
+    scipy_level = genpareto.isf(1.0 / 20.0, c, loc=loc, scale=scale)
+    np.testing.assert_allclose(float(np.asarray(level).ravel()[0]), scipy_level, rtol=1e-6, atol=1e-6)
 
 
-def test_rejects_unsupported_options(rng):
-    da = xr.DataArray(_gumbel(rng, 20), dims="year")
-    with pytest.raises(ValueError, match="PWM"):
-        fit(da, method="MM", dim="year")
+def test_pwm_and_gmle(rng):
+    xs = _stats()
+    y = _gumbel(rng, 50)
+    da = _annual(y)
+    pwm = xs.fit(da, "genextreme", method="PWM", backend="tails")
+    ref = tails.fit_gev(y, method="lmom")
+    np.testing.assert_allclose(float(pwm.sel(dparams="c")), -float(ref.params["shape"]))
+    gmle = xs.fit(da, "genextreme", method="GMLE", backend="tails")
+    ref = tails.fit_gev(y, method="gmle")
+    np.testing.assert_allclose(float(gmle.sel(dparams="c")), -float(ref.params["shape"]))
+
+
+def test_dask_matches_eager(rng):
+    pytest.importorskip("dask")
+    xs = _stats()
+    y = _gumbel(rng, 2, 36)
+    da = _annual(y)
+    eager = xs.fit(da, "genextreme", backend="tails")
+    lazy = xs.fit(da.chunk({"lat": 1, "time": 10}), "genextreme", backend="tails")
+    np.testing.assert_allclose(lazy.values, eager.values)
+
+
+def test_backend_rejects_unknown_requests(rng):
+    xs = _stats()
+    da = _annual(_gumbel(rng, 30))
+    with pytest.raises(ValueError, match="backend"):
+        xs.fit(da, "genextreme", backend="lmoments")
+    with pytest.raises(ValueError, match="tails"):
+        xs.fa(da, 20, "genextreme", ci="profile")
     with pytest.raises(ValueError, match="Gumbel"):
-        fit(da, dist="gumbel_r", dim="year")
-    with pytest.raises(ValueError, match="genextreme"):
-        fit(da, dist="gamma", dim="year")
-    with pytest.raises(ValueError, match="min"):
-        fa(da, 20, dist="genpareto", mode="min", dim="year")
+        xs.fit(da, "gumbel_r", backend="tails")
+    with pytest.raises(ValueError, match="ML"):
+        xs.fit(da, "genextreme", method="MM", backend="tails")
     with pytest.raises(ValueError, match="GEV"):
-        fa(da, 20, dist="genpareto", ci="delta", dim="year")
-    with pytest.raises(ValueError, match="datetime"):
-        frequency_analysis(da, "max", 20, dim="year")
-    dated = xr.DataArray(da.values, coords={"time": np.arange(20)}, dims="time")
-    with pytest.raises(ValueError, match="datetime"):
-        block_extremes(dated, "max")
-    import pandas as pd
-
-    daily = xr.DataArray(
-        np.zeros(40),
-        coords={"time": pd.date_range("2001-01-01", periods=40, freq="D")},
-        dims="time",
-    )
-    with pytest.raises(ValueError, match="season"):
-        block_extremes(daily, "max", season="DJFM")
-    with pytest.raises(ValueError, match="month"):
-        frequency_analysis(daily, "max", 10, doy=15)
+        xs.fa(da, 20, "genpareto", backend="tails", ci="delta")
+    with pytest.raises(ValueError, match="floc"):
+        xs.fit(da, "genextreme", backend="tails", floc=0)
 
 
-def test_backend_does_not_import_xclim():
-    import tails.xclim as backend
+def test_register_is_idempotent_and_unregister_restores():
+    xs = _stats()
+    import tails.xclim as tx
 
-    assert backend.__name__ == "tails.xclim"
-    assert not [name for name in sys.modules if name == "xclim" or name.startswith("xclim.")]
+    first = xs.frequency_analysis
+    assert "backend" in inspect.signature(first).parameters
+    assert tx.register() is True
+    assert xs.frequency_analysis is first
+    tx.unregister()
+    try:
+        assert xs.frequency_analysis is first.__wrapped__
+        assert not getattr(xs.fit, "_tails_backend", False)
+        assert not getattr(xs.fa, "_tails_backend", False)
+    finally:
+        tx.register()

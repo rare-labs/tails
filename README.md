@@ -19,7 +19,7 @@ enough to always report. The import is `tails`. The package name on PyPI is
 
 ```bash
 pip install rare-tails
-pip install "rare-tails[xarray,plots]"   # extras: xarray, plots, bayes (NumPyro), dev, docs, all
+pip install "rare-tails[xarray,plots]"   # extras: xarray, plots, bayes (NumPyro), xclim, dev, docs, all
 ```
 
 Until the first release is published, install from the repository:
@@ -63,12 +63,14 @@ has a return period of about 138 years.
   draws diagnostic plots. Use it for a single site when you want that
   workflow. It does not document covariate models, it does not batch thousands
   of series, and it has no IDF module.
-- **xclim** is where a lot of Canadian climate work already lives. Its
-  frequency analysis returns a point return level on an xarray/Dask grid.
-  `tails.xclim.frequency_analysis` follows that workflow and computes the
-  fit in one batched call, with an optional delta, profile or bootstrap
-  interval for the GEV. The shape it reports is ξ, not scipy's `c`.
-  Non-stationary models and IDF curves stay on `fit_gev` and `tails.idf`.
+- **xclim** is where a lot of Canadian climate work already lives. After
+  `import tails.xclim`, the same `frequency_analysis` call takes
+  `backend="tails"` and `ci="profile"` (also `"delta"` or `"bootstrap"`).
+  On xclim 1.0 the function is `xclim.compute.stats.frequency_analysis`;
+  on xclim 0.x it is `xclim.indices.stats.frequency_analysis`. The fit is
+  one batched call. The parameter array stays in scipy order, with
+  genextreme `c` equal to −ξ. Non-stationary models and IDF curves stay
+  on `fit_gev` and `tails.idf`.
 
 A wider comparison is in [docs/landscape.md](docs/landscape.md). A worked IDF
 example on the same Québec City station is in

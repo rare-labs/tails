@@ -15,9 +15,11 @@ tables and you want a fitted model with honest uncertainty — especially if you
 have many stations or grid cells. If you have a single pandas time series and
 you mainly want diagnostic plots, [pyextremes](https://georgebv.github.io/pyextremes/)
 may be a better first stop. If you already work in [xclim](https://xclim.readthedocs.io/),
-`tails.xclim.frequency_analysis` follows the same block-extreme workflow on a
-DataArray and can add a profile-likelihood interval. The shape it reports is
-ξ. Non-stationary models and IDF curves stay on `tails.fit_gev` and `tails.idf`.
+`import tails.xclim` and keep calling `frequency_analysis` with
+`backend="tails"` and, when you want an interval, `ci="profile"`. On xclim
+1.0 the import is `xclim.compute.stats`; on xclim 0.x it is
+`xclim.indices.stats`. Genextreme's `c` in the parameter array equals −ξ.
+Non-stationary models and IDF curves stay on `tails.fit_gev` and `tails.idf`.
 
 Start with the [Quickstart](quickstart.md) or the
 [Québec City IDF tutorial](tutorial_quebec_idf.md).

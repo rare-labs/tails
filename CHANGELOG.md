@@ -9,14 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `tails.xclim`: frequency analysis on an xarray DataArray (`fit`, `fa`,
-  `frequency_analysis`), using the same batched JAX GEV and GPD fits as the
-  rest of tails. The shape parameter is ξ. GEV return levels accept delta,
-  profile and bootstrap intervals. `as_scipy_params` is the explicit
-  conversion to scipy's `c` (`c = -ξ` for the GEV, `c = ξ` for the GPD).
-  Stationary models only; method of moments, maximum spacing and a
-  constrained Gumbel fit are not implemented. A GPD return level here is a
-  quantile of the fitted sample, not a peaks-over-threshold annual level.
+- `import tails.xclim` registers an optional backend on xclim frequency
+  analysis (`xclim.compute.stats` in xclim 1.0 and later, `xclim.indices.stats`
+  in xclim 0.x). `frequency_analysis(..., backend="tails", ci="profile")` and
+  `fit(..., backend="tails")` then use tails' batched GEV and GPD fits.
+  The parameter array stays in scipy order (`c = -ξ` for genextreme,
+  `c = ξ` for genpareto), so `parametric_quantile` still applies. A GEV
+  interval (`ci="delta"`, `"profile"` or `"bootstrap"`) comes back as a
+  Dataset of `return_level`, `lower` and `upper`. Stationary models; methods
+  ML, PWM and GMLE. Method of moments, maximum spacing and a constrained
+  Gumbel are not on this backend. A GPD level is a quantile of the fitted
+  sample (optional scalar `threshold`), not a peaks-over-threshold annual level.
 
 - Persistent JAX compilation cache, on by default, in `$TAILS_CACHE/jax` (default
   `~/.cache/tails/jax`). A new Python session reuses kernels compiled by the previous one, so a
