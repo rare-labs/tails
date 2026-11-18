@@ -149,6 +149,29 @@ intervals are available, and `"profile"` is the default there too.
 
 ![Return-level chart with the 2005 event marked](img/how_rare_2005.png)
 
+## Are these records happening more often than chance?
+
+`record_breaks` does not fit a GEV. Under an unchanging climate the chance that year `t` sets a record is `1/t`, so a 64-year series expects about 4.7 records of either kind. `foster_stuart` then asks two separate questions: are the records mostly highs rather than lows (a drift), and are there too many records of both kinds (the spread is changing)?
+
+```python
+import pandas as pd
+from tails.datasets import load_eccc_quebec
+from tails.records import foster_stuart, record_breaks
+
+df = load_eccc_quebec()
+sub = df.loc[df.station_id == "701S001", ["year", "24h"]].dropna()
+series = pd.Series(
+    sub["24h"].to_numpy(),
+    index=pd.to_datetime(sub["year"].astype(str), format="%Y"),
+)
+breaks = record_breaks(series)
+print(breaks.summary().to_string(index=False))
+print(breaks.events().to_string(index=False))
+print(foster_stuart(series).summary().to_string(index=False))
+```
+
+Québec City, 24-hour annual maxima, 1961–2024: 7 upper records against 4.74 expected (ratio 1.48, one-sided p = 0.16). The record years are 1961 (61.7 mm), 1962 (71.4), 1978 (78.9), 1979 (81.2), 1996 (83.0), 1998 (104.8) and 2005 (105.4). Foster–Stuart D is 2 (one-sided p = 0.29 for an upward drift) and S is 10 against 7.49 expected. Neither departure is large for a 64-year series. `kind="lower"` counts record minima. A batch is an array whose last axis is time; `summary()` then has one row per series.
+
 ## How do I download ECCC station data?
 
 `tails.datasets.eccc_daily` and `eccc_hourly` talk to the official MSC GeoMet

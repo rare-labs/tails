@@ -33,7 +33,7 @@ Source: https://github.com/rare-labs/tails
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")`. Gridded IDF: `tx.fit_idf(intensity, year="year", duration="duration")`, then `tx.idf_quantile(ds, [1.0], [100])` |
 | xclim frequency analysis | `import tails.xclim`, then `frequency_analysis(da, "max", [20, 100], "genextreme", backend="tails", ci="profile")` from `xclim.compute.stats` (xclim ≥ 1) or `xclim.indices.stats` (xclim 0.x). The returned `c` is scipy's: `c = -ξ` for genextreme, `c = ξ` for genpareto |
 | Bayesian GEV | `from tails.bayes import fit_gev_bayes` (extra `rare-tails[bayes]`) |
-| Record indicators | `tails.records.record_indicators`, `record_test` |
+| Records | `tails.records.record_breaks(x)` and `foster_stuart(x)`. `record_indicators` and `record_test` are the same counts |
 
 Submodules `idf`, `xarray`, `xclim`, `bayes`, `datasets` are imported lazily. `import tails`
 is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare` / `fit_block_maxima`

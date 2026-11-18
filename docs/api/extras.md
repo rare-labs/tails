@@ -23,6 +23,18 @@ tx.idf_quantile(idf, [1.0], [100])
 
 ::: tails.xarray
 ::: tails.xclim
+
+`tails.records` is the record-breaking toolkit. `record_breaks` marks upper or lower records and compares the count with the harmonic number `H_n`. `foster_stuart` splits that into a drift (more highs than lows) and a change in spread (more records of both kinds). The last axis is the series. Missing values are skipped, and a tie is not a new record.
+
+```python
+from tails.records import foster_stuart, record_breaks
+
+breaks = record_breaks(annual_max)          # or kind="lower"
+breaks.summary()                            # one row per series
+breaks.events()                             # one row per record
+foster_stuart(annual_max).summary()
+```
+
 ::: tails.records
 ::: tails.datasets
 ::: tails.bayes
