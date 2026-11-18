@@ -4,8 +4,7 @@
 pip install "rare-tails[xarray]"
 ```
 
-The import is `import tails`. Until the first release is on PyPI, use
-`pip install "rare-tails[xarray] @ git+https://github.com/rare-labs/tails"`.
+The import is `import tails`.
 
 ## How do I fit one series?
 

@@ -20,11 +20,8 @@ enough to always report. The import is `tails`. The package name on PyPI is
 ```bash
 pip install rare-tails
 pip install "rare-tails[xarray,plots]"   # extras: xarray, plots, bayes (NumPyro), xclim, dev, docs, all
-```
 
-Until the first release is published, install from the repository:
-
-```bash
+# current main, including changes that are not in a release yet
 pip install "rare-tails[xarray,plots] @ git+https://github.com/rare-labs/tails"
 ```
 

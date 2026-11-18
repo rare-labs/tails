@@ -118,4 +118,6 @@ mkdocs build --strict
 ```
 
 Python 3.10–3.13. CI is `.github/workflows/ci.yml`. Releases are tagged
-`v*` and published with Trusted Publishing (`.github/workflows/release.yml`).
+`v*` (the tag is `v` plus `project.version`) and published with Trusted
+Publishing (`.github/workflows/release.yml`). conda-forge is a feedstock
+pull request opened after that sdist is on PyPI.

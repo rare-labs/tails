@@ -1,17 +1,24 @@
 # Publish rare-tails to PyPI via Trusted Publishing.
 # Do not store API tokens in this repository.
 #
+# GitHub environments `pypi` and `testpypi` are the OIDC audiences.
 # Before the first tag, register a pending trusted publisher at
-# https://pypi.org/manage/account/publishing/ (and the same form on
-# https://test.pypi.org/manage/account/publishing/):
+# https://pypi.org/manage/account/publishing/
+# and the same form on https://test.pypi.org/manage/account/publishing/ :
 #   owner: rare-labs
 #   repository: tails
 #   workflow: release.yml
-#   environment: pypi          (or testpypi)
+#   environment: pypi          (testpypi on TestPyPI)
 #   project name: rare-tails
 #
-# Then: tag v0.1.0 and push the tag. A manual workflow_dispatch publishes
-# only to TestPyPI.
+# Tag vX.Y.Z where X.Y.Z is project.version in pyproject.toml and
+# tails.__version__. Pushing the tag publishes to PyPI and opens the
+# GitHub Release. workflow_dispatch publishes the current commit to
+# TestPyPI only.
+#
+# conda-forge is a separate feedstock PR against
+# conda-forge/staged-recipes after the sdist is on PyPI. The GitHub
+# Release notes include the sdist sha256.
 
 name: Release
 
@@ -24,19 +31,27 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Check the version against the tag
+        run: python scripts/check_release_dist.py
       - name: Build sdist and wheel
         run: |
           python -m pip install --upgrade pip build
+          rm -rf dist
           python -m build
       - name: Check metadata
         run: |
           python -m pip install twine
           twine check --strict dist/*
+      - name: Check wheel contents
+        run: python scripts/check_release_dist.py
       - uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -51,6 +66,7 @@ jobs:
       url: https://pypi.org/project/rare-tails/
     permissions:
       id-token: write
+      actions: read
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -67,6 +83,7 @@ jobs:
       url: https://test.pypi.org/project/rare-tails/
     permissions:
       id-token: write
+      actions: read
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -75,3 +92,50 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
+
+  github-release:
+    needs: publish-pypi
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import hashlib
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          text = Path("CHANGELOG.md").read_text()
+          match = re.search(
+              rf"^## \[{re.escape(version)}\][^\n]*\n(.*?)(?=^## |\n\[[^\n]+\]: |\Z)",
+              text,
+              re.S | re.M,
+          )
+          if match is None or not match.group(1).strip():
+              raise SystemExit(f"CHANGELOG.md has no notes for {version}")
+          lines = [match.group(1).strip(), "", "### Distributions", ""]
+          paths = sorted(Path("dist").glob("*.whl")) + sorted(Path("dist").glob("*.tar.gz"))
+          if not paths:
+              raise SystemExit("dist/ has no wheel or sdist")
+          for path in paths:
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              lines.append(f"- `{path.name}`")
+              lines.append(f"  sha256 `{digest}`")
+          Path("release-notes.md").write_text("\n".join(lines) + "\n")
+          PY
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --title "$GITHUB_REF_NAME" \
+            --notes-file release-notes.md

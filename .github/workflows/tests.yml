@@ -32,6 +32,22 @@ jobs:
       - name: Lint
         run: |
           pip install ruff
-          ruff check src tests
+          ruff check src tests scripts
       - name: Test
         run: pytest -q --cov=tails --cov-report=term-missing
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and check distributions
+        run: |
+          python -m pip install --upgrade pip build twine
+          rm -rf dist
+          python scripts/check_release_dist.py
+          python -m build
+          twine check --strict dist/*
+          python scripts/check_release_dist.py
