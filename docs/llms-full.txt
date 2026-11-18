@@ -30,11 +30,15 @@ tails.fit_gev(data, loc=None, scale=None, shape=None, mask=None, method="mle")
   Returns GEVFit.
   fit.params is a dict with natural parameters loc, scale, shape (arrays).
   fit.return_level(periods, ci="profile"|"delta"|"bootstrap", alpha=0.05)
+  Profile and bootstrap apply to stationary GEV and to GEV with covariates
+  (the profile replaces the location intercept at each covariate row).
   fit.coef, fit.se, fit.summary(), fit.converged, fit.nobs, fit.loglik.
 
 tails.fit_gpd(data, threshold=None, ...)
 tails.fit_pot(data, threshold, npy=365.25, ...)
-  POT return_level supports ci=None or "delta" only.
+  POT return_level ci is "delta", "profile" or "bootstrap" (stationary).
+  Profile is the joint excess + exceedance-rate likelihood. fixed_shape
+  stays fixed for delta and profile; bootstrap needs a free shape.
 
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold
@@ -59,6 +63,19 @@ from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf, ecc
 import tails.xarray as tx
   tx.fit_gev(da, dim="time"); tx.return_level(ds, [20, 100])
   Coefficients include log_scale. Covariates are supported here.
+  tx.fit_idf(intensity, year="year", duration="duration")
+    DataArray of annual-maximum intensity (mm/h). depth=True converts mm to mm/h.
+    Duration coordinate: hours, a timedelta, or ECCC tags (5min … 24h).
+    Chunks must not split year or duration. One batched fit per chunk.
+    Dataset of natural parameters (mu0, sigma0, xi, alpha, plus delta / nu / rho),
+    <name>_se from the observed Hessian, loglik, converged.
+    A cell with fewer than two durations of three finite years is NaN.
+  tx.idf_quantile(idf_ds, [1.0], [100])   # intensity at 1 h, 100-year return period
+  Worked example: docs/tutorial_quebec_idf.md section 8. Three bundled Québec
+  stations as a DataArray of depths (mm), depth=True, marginal="general".
+  Québec City 701S001 100-year 1 h intensity is 46.06 mm/h, the same as
+  fit_idf(IDFData.from_eccc("701S001"), "general"). Montréal–Trudeau 48.35 mm/h;
+  Sherbrooke A (1962–1994) 50.77 mm/h.
 
 import tails.xclim   # before `from xclim... import frequency_analysis`
   from xclim.compute.stats import frequency_analysis, fit   # xclim >= 1.0

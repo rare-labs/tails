@@ -10,8 +10,8 @@
    starting values, where quasi-Newton or Nelder–Mead needs dozens to hundreds of evaluations.
 3. **Masks, not loops.** Missing values, ragged record lengths, threshold exceedances and unobserved
    IDF durations are all boolean masks on rectangular arrays, so heterogeneous problems still batch.
-4. **Uncertainty is part of the batch.** Profile likelihoods (many series × return periods × grid
-   points), bootstrap replicates and candidate thresholds are just more rows.
+4. **Uncertainty is part of the batch.** Profile likelihoods (many series × covariate rows × return
+   periods × grid points), POT and GEV bootstrap replicates and candidate thresholds are just more rows.
 
 ## Why JAX (and not Numba)?
 
@@ -57,6 +57,8 @@ autodiff in the tests). A Numba/C++ kernel remains planned for JAX-free environm
 - Results are dataclasses (`GEVFit`, `POTFit`, `IDFFit`) holding coefficients, covariance (observed
   information), log-likelihood, convergence flags, and methods (`return_level(..., ci=...)`,
   `quantile_ci`, `summary`, `to_pandas`).
-- `tails.xarray.fit_gev(da, dim="time")` maps labelled, Dask-chunked arrays through
-  `xarray.apply_ufunc(dask="parallelized")`; each chunk is one batched fit.
+- `tails.xarray.fit_gev(da, dim="time")` and
+  `tails.xarray.fit_idf(da, year="year", duration="duration")` map labelled,
+  Dask-chunked arrays through `xarray.apply_ufunc(dask="parallelized")`; each
+  chunk is one batched fit. IDF quantiles are `tails.xarray.idf_quantile`.
 - 64-bit floats are enabled in JAX on import (tail probabilities need them).

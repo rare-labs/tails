@@ -30,7 +30,7 @@ Source: https://github.com/rare-labs/tails
 | How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")` |
 | Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
 | Plots | `fit.plot_diagnostics()`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
-| xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")` |
+| xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")`. Gridded IDF: `tx.fit_idf(intensity, year="year", duration="duration")`, then `tx.idf_quantile(ds, [1.0], [100])` |
 | xclim frequency analysis | `import tails.xclim`, then `frequency_analysis(da, "max", [20, 100], "genextreme", backend="tails", ci="profile")` from `xclim.compute.stats` (xclim ≥ 1) or `xclim.indices.stats` (xclim 0.x). The returned `c` is scipy's: `c = -ξ` for genextreme, `c = ξ` for genpareto |
 | Bayesian GEV | `from tails.bayes import fit_gev_bayes` (extra `rare-tails[bayes]`) |
 | Record indicators | `tails.records.record_indicators`, `record_test` |
@@ -91,8 +91,10 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
 - **Short records.** A batch will happily fit 11-year series. Cap Tourmente
   (`7041177`) is an example: ξ ≈ 1.24 and a nominal 100-year 24-hour level
   that you must not quote. Filter on `nobs` and ξ.
-- **POT intervals.** `POTFit.return_level` currently supports `ci=None` or
-  `"delta"` only, not profile or bootstrap.
+- **Bootstrap with a fixed shape.** `fixed_shape` (Gumbel, exponential) stays
+  fixed for delta and profile intervals, including POT return levels and
+  non-stationary GEV profiles. Bootstrap refits a free ξ, so `ci="bootstrap"`
+  is rejected; use `"delta"` or `"profile"`.
 - **Plots.** `fit.plot_diagnostics()` (GEV/GPD/POT, stationary) and
   `IDFFit.plot()` (curves + CI ribbons + empirical return-period points)
   require `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;

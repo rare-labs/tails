@@ -63,9 +63,11 @@ the original scale.
 years = np.arange(len(y)) + 1961.0
 fit = tails.fit_gev(y, loc=years - 2000)          # mu(t) = b0 + b1 (t - 2000)
 fit.param_names                                    # ['loc', 'loc:x0', 'log_scale', 'shape']
-fit.return_level([100], covariates={"loc": np.array([[-30.0], [24.0]])}, ci="delta")
+fit.return_level([100], covariates={"loc": np.array([[-30.0], [24.0]])}, ci="profile")
 ```
 
+`ci` is `"delta"`, `"profile"` or `"bootstrap"` here as well. The profile
+replaces the location intercept with the return level at each covariate row.
 Covariates can be passed for `loc`, `scale` (log link) and `shape`, shared `(n, k)` or per series
 `(*batch, n, k)`. Use `method="gmle"` for short records.
 
@@ -74,11 +76,14 @@ Covariates can be passed for `loc`, `scale` (log link) and `shape`, shared `(n, 
 ```python
 sel = tails.select_threshold(daily, np.quantile(daily, np.linspace(0.90, 0.99, 15)))
 pot = tails.fit_pot(daily, sel.threshold, npy=365.25, decluster=2)
-pot.return_level([10, 50], ci="delta")
+pot.return_level([10, 50], ci="profile")  # or "delta", "bootstrap"
 ```
 
 `select_threshold` runs a batched ForwardStop procedure with Anderson–Darling
-p-values. `POTFit.return_level` currently supports `ci=None` or `"delta"`.
+p-values. `POTFit.return_level` takes the same `ci` values as a GEV fit.
+`"profile"` is the joint profile of the excesses and the exceedance rate;
+`"bootstrap"` resamples both and refits. An exponential model
+(`fixed_shape=0`) keeps ξ fixed in the profile interval.
 
 ## How do I work from an xarray Dataset?
 
@@ -86,7 +91,16 @@ p-values. `POTFit.return_level` currently supports `ci=None` or `"delta"`.
 import tails.xarray as txr
 ds = txr.fit_gev(annual_max.chunk({"lat": 50}), dim="year")   # Dataset of loc/log_scale/shape (+ se)
 rl100 = txr.return_level(ds, 100)
+
+idf = txr.fit_idf(intensity.chunk({"lat": 50}), year="year", duration="duration")
+q100 = txr.idf_quantile(idf, [1.0], [100])   # 100-year intensity at 1 hour
 ```
+
+`intensity` is annual-maximum intensity (mm/h). The `duration` coordinate is
+hours, a timedelta, or an ECCC tag (`1h`, `24h`, …). Pass `depth=True` when
+the array stores depth in mm instead. Chunks must not split `year` or
+`duration`. A worked example on three bundled Québec stations is in the
+[Québec City tutorial](tutorial_quebec_idf.md#8-the-same-fit-on-an-xarray-grid).
 
 ## How do I fit an IDF curve?
 

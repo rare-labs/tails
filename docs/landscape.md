@@ -88,7 +88,8 @@ and source. Timings mentioned here were measured on one 8-vCPU VM.
   series into block maxima or declustered peaks, optionally choose the GEV against the Gumbel model
   (or the GPD against the exponential) by AIC, and return a return-level table. Shape is ξ. A batch
   of stations is still `fit_gev` / `fit_pot`.
-- **Labelled data**: an xarray/Dask front-end so a gridded dataset is one call, chunk-parallel.
+- **Labelled data**: an xarray/Dask front-end so a gridded dataset is one call, chunk-parallel
+  (`fit_gev` for block maxima, `fit_idf` for IDF curves).
   `import tails.xclim` adds `backend="tails"` to xclim's `frequency_analysis`
   (`xclim.compute.stats` on xclim 1.0, `xclim.indices.stats` on xclim 0.x),
   including a profile-likelihood interval.
