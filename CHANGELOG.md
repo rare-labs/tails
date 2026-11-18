@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `plot_diagnostics` on a non-stationary GEV draws the observations, the fitted
+  return level along the covariate, and a delta, profile, or bootstrap ribbon.
+  The covariate is the one passed to `fit_gev` — a year, a temperature index,
+  or any other series — and a pandas column name labels the axis. `period`
+  defaults to 2, the median. Stationary GEV, GPD and POT diagnostics are unchanged.
+
 ## [0.1.0] — 2026-11-18
 
 First public release. The import is `import tails`; the distribution name on PyPI is `rare-tails`

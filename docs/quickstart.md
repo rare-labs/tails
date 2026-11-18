@@ -63,10 +63,18 @@ years = np.arange(len(y)) + 1961.0
 fit = tails.fit_gev(y, loc=years - 2000)          # mu(t) = b0 + b1 (t - 2000)
 fit.param_names                                    # ['loc', 'loc:x0', 'log_scale', 'shape']
 fit.return_level([100], covariates={"loc": np.array([[-30.0], [24.0]])}, ci="profile")
+fit.plot_diagnostics()             # observations, fitted 2-year level, delta ribbon
 ```
 
 `ci` is `"delta"`, `"profile"` or `"bootstrap"` here as well. The profile
 replaces the location intercept with the return level at each covariate row.
+`plot_diagnostics` draws the maxima against the covariate (`years - 2000`
+here), the fitted 2-year level along those rows, and a delta-method ribbon.
+Pass `ci="profile"` or `"bootstrap"` for that interval, and `period` for a
+level other than the median. An unnamed array is labelled "Covariate"; a
+pandas column name is used when you pass one. A temperature index, or a
+covariate on the scale or the shape, is the same figure.
+
 Covariates can be passed for `loc`, `scale` (log link) and `shape`, shared `(n, k)` or per series
 `(*batch, n, k)`. Use `method="gmle"` for short records.
 
