@@ -3,6 +3,8 @@
 Everything is batched over candidate thresholds: exceedances of each
 threshold are a *mask* on the same data vector, so fitting a GPD at 50
 thresholds (or 50 thresholds × 200 bootstrap replicates) is one batched call.
+:func:`plot_threshold` draws the mean excess, the modified scale and the
+shape, and marks the ForwardStop threshold. It needs the ``plots`` extra.
 """
 
 from __future__ import annotations
@@ -15,7 +17,13 @@ from .._jax import jax, jnp
 from .distributions import gpd_cdf, gpd_ppf
 from .fit import fit_gpd
 
-__all__ = ["mean_residual_life", "parameter_stability", "select_threshold", "ThresholdSelection"]
+__all__ = [
+    "mean_residual_life",
+    "parameter_stability",
+    "select_threshold",
+    "plot_threshold",
+    "ThresholdSelection",
+]
 
 
 def mean_residual_life(x, thresholds, alpha: float = 0.05):
@@ -146,3 +154,66 @@ def select_threshold(x, thresholds, *, alpha: float = 0.05, n_boot: int = 199, s
     idx = int(rejected.max() + 1) if rejected.size else 0
     idx = min(idx, K - 1)
     return ThresholdSelection(float(u[idx]), idx, u, pv, stat, nk, fs)
+
+
+def plot_threshold(
+    x,
+    thresholds=None,
+    *,
+    unit: str = "",
+    alpha: float = 0.05,
+    n_boot: int = 199,
+    seed: int = 0,
+    figsize=(10.0, 3.7),
+    fig=None,
+):
+    """Mean excess, modified scale and shape against candidate thresholds.
+
+    Parameters
+    ----------
+    x
+        One series of observations (a 1-d array or a pandas Series). NaNs are
+        ignored. Any sample you might pass to :func:`fit_pot`.
+    thresholds
+        Candidate thresholds. The default is a grid of empirical quantiles,
+        from the median when the series has at least 400 finite values and
+        from the 0.70 quantile otherwise, up to a high value that still leaves
+        a block of exceedances. Passed values are sorted and de-duplicated.
+        A candidate with fewer than two exceedances is omitted, because a GPD
+        fit needs two excesses.
+    unit
+        Unit string appended to the threshold, mean-excess and modified-scale
+        labels, for example ``"mm"`` or ``"kN"``. The shape panel is
+        dimensionless. ``""`` leaves those labels unqualified.
+    alpha
+        Tail probability for the ribbons. Passed to :func:`mean_residual_life`
+        and :func:`parameter_stability`. ``0.05`` is a 95% ribbon.
+    n_boot, seed
+        Parametric-bootstrap size and seed for the ForwardStop threshold
+        (:func:`select_threshold`).
+    figsize, fig
+        Size of a new figure, or an existing figure with at least three axes.
+
+    Returns
+    -------
+    fig, axes
+        A 1×3 figure. Panels are the mean-excess ribbon, the modified scale
+        ``σ - ξu``, and the shape ``ξ``, each against the threshold. A dashed
+        line marks the ForwardStop threshold.
+
+    Notes
+    -----
+    Requires the ``plots`` extra (``pip install 'rare-tails[plots]'``).
+    """
+    from ..plotting import plot_threshold_figure
+
+    return plot_threshold_figure(
+        x,
+        thresholds,
+        unit=unit,
+        alpha=alpha,
+        n_boot=n_boot,
+        seed=seed,
+        figsize=figsize,
+        fig=fig,
+    )

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `tails.plot_threshold` draws the mean-excess ribbon, the GPD modified scale
+  and shape, and the ForwardStop threshold. It takes one series and a unit
+  string for the axis labels, and needs the `plots` extra
+  (`pip install 'rare-tails[plots]'`), the same as `plot_diagnostics`.
+
 ## [0.1.0] — 2026-11-18
 
 First public release. The import is `import tails`; the distribution name on PyPI is `rare-tails`

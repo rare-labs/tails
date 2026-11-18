@@ -63,8 +63,9 @@ a short series.
   of rainfall, discharge, temperature, demand, and so on.
 - **GPD / POT** (`tails.fit_gpd`, `tails.fit_pot`) when you have many
   exceedances above a threshold rather than one maximum per year. Use the
-  Quickstart’s peaks-over-threshold example, plus `mean_residual_life` and
-  `parameter_stability` if you need to choose the threshold.
+  Quickstart’s peaks-over-threshold example. `plot_threshold(series, unit="mm")`
+  draws the mean-excess ribbon, parameter stability and the ForwardStop
+  threshold (`rare-tails[plots]`).
 - **IDF** (`tails.idf.fit_idf`) when you have annual maxima at several
   durations. Start with the general (d-GEV) scaling model; run `scaling_test`
   before you accept simple scaling. At Québec City the simple-scaling test

@@ -44,6 +44,42 @@ empirical 100-year point at 1 h is 59.9 mm/h — the 1979 storm, which sits
 above the pooled curve. `ci` can be `"hessian"`, `"sandwich"`, `"bootstrap"`,
 or `None` for the curves alone.
 
+## How do I choose a threshold?
+
+`plot_threshold` draws the usual checks for one series: the mean excess
+(mean residual life) with a confidence ribbon, the GPD modified scale
+σ − ξu and the shape ξ across candidate thresholds, and the ForwardStop
+choice as a dashed line. `unit` is the axis label. The plots extra is
+required, the same as `plot_diagnostics`:
+`pip install "rare-tails[plots]"`.
+
+```python
+import numpy as np
+from scipy import stats
+
+import tails
+
+rng = np.random.default_rng(0)
+body = rng.uniform(0.0, 10.0, size=5000)
+excess = stats.genpareto.rvs(0.15, scale=6.0, size=700, random_state=rng)
+rain = np.concatenate([body, 10.0 + excess])  # synthetic daily rainfall, mm
+thresholds = np.linspace(2.0, 25.0, 14)
+fig, axes = tails.plot_threshold(rain, thresholds, unit="mm")
+```
+
+Above a valid threshold the mean excess is linear and the modified scale and
+shape level off. ForwardStop (Bader, Yan & Zhang, 2018) keeps the lowest
+candidate that is not rejected. On this series that is 10.85 mm. The tail was
+drawn from a generalised Pareto distribution above 10 mm with shape 0.15; the
+fitted shape at 10.85 mm is 0.12, and the ribbon widens as the number of
+exceedances falls. Pass the chosen value to `fit_pot`.
+
+![Mean excess, modified scale and shape, with the ForwardStop threshold](img/threshold_diagnostics.png)
+
+Leave `thresholds` out for a default quantile grid. `alpha`, `n_boot` and
+`seed` are the same arguments as `mean_residual_life`, `parameter_stability`
+and `select_threshold`.
+
 ## How do I start from a datetime series?
 
 `fit_block_maxima` takes one series with timestamps, keeps the maximum of each
