@@ -114,3 +114,26 @@ link to the API. `eccc_hourly("701S001", (2019, 2020))` is the same idea for
 hourly observations (`temp`, `precip`, wind, pressure). If a name matches
 several sites, the call raises with the candidate climate identifiers so you
 can pick one.
+
+## Why is my first fit slow, and how do I make it fast?
+
+The first time you call a model, JAX compiles its likelihood and Hessian for
+your CPU or GPU. That takes a few seconds. Every later call in the same
+session reuses the compiled code, which is why fitting thousands of series
+afterwards feels instant.
+
+tails also saves those compiled kernels to disk, so the *next* Python session
+does not compile them again. For example, a first `fit_gev` plus a profile
+interval drops from about 5 s in a fresh environment to under 2 s once the
+cache is warm. You do not need to do anything; it is on by default.
+
+```python
+import tails._jax
+
+tails._jax.compilation_cache_dir()   # where the kernels live, or None if off
+```
+
+The cache sits in `$TAILS_CACHE/jax` (default `~/.cache/tails/jax`) and is
+small (well under a megabyte for the common models). Set `TAILS_JAX_CACHE=0`
+to turn it off, for example on a read-only file system. If you already set
+`JAX_COMPILATION_CACHE_DIR` for your own JAX code, tails uses yours.

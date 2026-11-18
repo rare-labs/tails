@@ -94,7 +94,8 @@ single-station fit (102.0568 mm). Cap Tourmente 7041177 has nobs=11 and
 ## Pitfalls
 
 - scipy.stats.genextreme shape c equals minus tails/Coles ξ.
-- First JAX call compiles (seconds); later calls are fast.
+- First JAX call compiles (seconds); later calls are fast. Compiled kernels are cached on disk
+  ($TAILS_CACHE/jax, default ~/.cache/tails/jax), so new sessions start warm. TAILS_JAX_CACHE=0 turns it off.
 - Last axis is the record; preceding axes are the batch.
 - Plot APIs: fit.plot_diagnostics() on GEVFit/GPDFit/POTFit; ReturnLevels.plot(); IDFFit.plot(). No GEVFit.plot().
 - Do not put IDFCurves.jl author names in new public text; see NOTICE.

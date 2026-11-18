@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Persistent JAX compilation cache, on by default, in `$TAILS_CACHE/jax` (default
+  `~/.cache/tails/jax`). A new Python session reuses kernels compiled by the previous one, so a
+  first GEV fit with a profile interval takes under 2 s instead of about 5 s.
+  `TAILS_JAX_CACHE=0` turns it off; a cache directory already set for JAX is left alone.
+  `tails._jax.compilation_cache_dir()` reports the directory in use.
+
 ## [0.1.0] — 2026-11-18
 
 First public release. The import is `import tails`; the distribution name on PyPI is `rare-tails`
