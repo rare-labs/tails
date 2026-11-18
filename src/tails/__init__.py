@@ -38,6 +38,7 @@ __all__ = [
     "fit_block_maxima",
     "fit_peaks",
     "SeriesExtremes",
+    "plot_return_level_map",  # noqa: F405  — loaded lazily in __getattr__
     *_core_all,
 ]
 
@@ -45,6 +46,10 @@ __all__ = [
 def __getattr__(name):  # lazy heavy submodules
     import importlib
 
+    if name == "plot_return_level_map":
+        from .plotting import plot_return_level_map
+
+        return plot_return_level_map
     if name in {"idf", "xarray", "xclim", "bayes", "datasets"}:
         return importlib.import_module(f"tails.{name}")
     raise AttributeError(name)

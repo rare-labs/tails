@@ -54,6 +54,19 @@ class ReturnLevels:
 
         return plot_return_levels(self, ax=ax, index=index, **kwargs)
 
+    def plot_map(self, lon, lat, *, period: float | None = None, **kwargs):
+        """Scatter these return levels at longitude and latitude.
+
+        ``lon`` and ``lat`` are the coordinates of the batch, in degrees.
+        ``period`` selects one return period when this object holds several.
+        A ``(latitude, longitude)`` grid is drawn as a mesh. The colour is
+        the return level in the units of the fit. See
+        :func:`tails.plot_return_level_map`.
+        """
+        from ..plotting import plot_return_level_map
+
+        return plot_return_level_map(self, lon, lat, period=period, **kwargs)
+
 
 @dataclass
 class _FitBase:

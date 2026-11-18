@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tails.plot_return_level_map(levels, lon, lat)` draws one return level from
+  a batch fit at longitude and latitude. Stations are a scatter; a latitude
+  by longitude grid is a mesh. Coordinates come from the arguments or from
+  an xarray `lat`/`lon` (or `latitude`/`longitude`) coordinate. The colour
+  is the return level in the units of the fit. `ReturnLevels.plot_map` is
+  the same plot. Requires the `plots` extra.
 - Worked `tails.how_rare` examples beside the Québec City rainfall storm,
   on public annual maxima with the source and the units in the how-to: the
   US Treasury 10-year yield (39 basis points on 4 April 1994), Henry Hub

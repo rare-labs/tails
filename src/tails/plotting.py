@@ -9,7 +9,7 @@ from collections.abc import Sequence
 
 import numpy as np
 
-__all__ = ["require_matplotlib", "plot_fit_diagnostics"]
+__all__ = ["require_matplotlib", "plot_fit_diagnostics", "plot_return_level_map"]
 
 # Okabe–Ito, colour-blind friendly. First four are the IDF return-period defaults.
 PALETTE = ("#0072B2", "#D55E00", "#009E73", "#CC79A7", "#E69F00", "#56B4E9", "#F0E442", "#000000")
@@ -669,3 +669,284 @@ def plot_idf(
     apply_axes_style(ax)
     ax.figure.tight_layout()
     return ax
+
+
+def plot_return_level_map(
+    levels,
+    lon=None,
+    lat=None,
+    *,
+    period: float | None = None,
+    ax=None,
+    cmap: str = "viridis",
+    vmin: float | None = None,
+    vmax: float | None = None,
+    s: float = 36,
+    label: str | None = None,
+    title: str | None = None,
+    figsize=(6.4, 6.0),
+):
+    """Scatter or mesh of one return level at longitude and latitude.
+
+    ``levels`` is a batch of return levels already computed by a fit: a
+    :class:`~tails.core.fit.ReturnLevels`, a NumPy array of one value per
+    location, or an xarray DataArray or Dataset (a Dataset must contain
+    ``return_level``). For a DataArray with ``lat``/``lon`` or
+    ``latitude``/``longitude`` coordinates, ``lon`` and ``lat`` can be
+    omitted. A ``period`` or ``return_period`` dimension is indexed by
+    ``period`` when it has more than one value.
+
+    Stations (one coordinate pair per series) are a scatter. A rectangular
+    ``(lat, lon)`` grid is a mesh. Axes are longitude and latitude in
+    degrees, with an aspect of ``1 / cos(mean latitude)`` and no tile layer.
+    The colour is the return level in the units of the fit. Pass ``label``
+    to name those units; a DataArray ``units`` attribute is used when
+    ``label`` is omitted.
+
+    Parameters
+    ----------
+    levels
+        Return levels, one per location after ``period`` is selected.
+    lon, lat
+        Longitude and latitude in degrees. Required unless ``levels``
+        already carries those coordinates.
+    period
+        Return period to draw, in the same units as the fit (years for an
+        annual maximum). Required when ``levels`` has more than one period.
+        On a plain array it is not used to index; it only sets the default title.
+    cmap
+        Matplotlib colormap name. Default ``"viridis"``.
+    vmin, vmax
+        Colour limits. Default is the range of the finite levels.
+    s
+        Scatter marker area. Ignored for a grid.
+    label
+        Colour-bar text. Default ``"Return level"``, plus the DataArray
+        units when those are set.
+    title
+        Axes title. Default is ``"{period}-year return level"`` when the
+        period is known.
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+    """
+    plt = require_matplotlib()
+    values, used, coords, units = _map_values(levels, period)
+    if lon is None or lat is None:
+        if coords is None:
+            raise ValueError(
+                "pass lon and lat in degrees, or an xarray object with "
+                "lon/longitude and lat/latitude coordinates"
+            )
+        if lon is None:
+            lon = coords[0]
+        if lat is None:
+            lat = coords[1]
+    kind, values, lon, lat = _align_map(values, lon, lat)
+    if label is None:
+        label = "Return level" if not units else f"Return level ({units})"
+    if title is None and used is not None:
+        title = f"{used:g}-year return level"
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=figsize)
+    finite = values[np.isfinite(values)]
+    if finite.size == 0:
+        raise ValueError("no finite return level to plot")
+    if vmin is None and vmax is None and float(np.min(finite)) == float(np.max(finite)):
+        vmin = float(finite[0]) - 0.5
+        vmax = float(finite[0]) + 0.5
+    artist_kw = {"cmap": cmap, "vmin": vmin, "vmax": vmax}
+    if kind == "mesh":
+        artist = ax.pcolormesh(lon, lat, values, shading="auto", **artist_kw)
+        aspect_lat = lat
+    else:
+        mask = np.isfinite(values) & np.isfinite(lon) & np.isfinite(lat)
+        if not mask.any():
+            raise ValueError("no finite return level at a finite longitude and latitude")
+        artist = ax.scatter(
+            lon[mask],
+            lat[mask],
+            c=values[mask],
+            s=s,
+            edgecolors="white",
+            linewidths=0.4,
+            zorder=3,
+            **artist_kw,
+        )
+        aspect_lat = lat[mask]
+    cbar = ax.figure.colorbar(artist, ax=ax, shrink=0.72, pad=0.02)
+    cbar.set_label(label)
+    ax.set_xlabel("Longitude")
+    ax.set_ylabel("Latitude")
+    if title:
+        ax.set_title(title)
+    aspect = _geo_aspect(aspect_lat)
+    if aspect is not None:
+        ax.set_aspect(aspect, adjustable="box")
+    _plain_deg(ax)
+    apply_axes_style(ax)
+    ax.figure.tight_layout()
+    return ax
+
+
+def _map_values(levels, period):
+    """Return ``(values, period_or_None, (lon, lat) or None, units or None)``."""
+    if hasattr(levels, "data_vars"):
+        if "return_level" not in levels:
+            found = ", ".join(str(name) for name in list(levels.data_vars)[:6])
+            raise ValueError(f"dataset has no 'return_level' variable (found {found})")
+        levels = levels["return_level"]
+    estimate = getattr(levels, "estimate", None)
+    periods = getattr(levels, "period", None)
+    if estimate is not None and periods is not None and not hasattr(levels, "dims"):
+        grid = np.asarray(periods, dtype=float).reshape(-1)
+        idx, used = _select_period(grid, period)
+        est = np.asarray(estimate, dtype=float)
+        if est.ndim == 0 or est.shape[-1] != grid.size:
+            length = 0 if est.ndim == 0 else est.shape[-1]
+            raise ValueError(f"return-level array ends with length {length}, but there are {grid.size} periods")
+        return est[..., idx], used, None, None
+    if hasattr(levels, "dims") and hasattr(levels, "coords") and hasattr(levels, "values"):
+        used = None
+        dim = _period_dim(levels)
+        if dim is not None:
+            grid = np.atleast_1d(np.asarray(levels.coords[dim].values, dtype=float))
+            idx, used = _select_period(grid, period)
+            levels = levels.isel({dim: idx})
+        elif period is not None:
+            used = float(period)
+        values, coords = _dataarray_field(levels)
+        return values, used, coords, _units_attr(levels)
+    if period is not None and not np.isscalar(period):
+        raise ValueError("period must be a single return period")
+    used = None if period is None else float(period)
+    return np.asarray(levels, dtype=float), used, None, _units_attr(levels)
+
+
+def _period_dim(da) -> str | None:
+    found = [name for name in ("period", "return_period") if name in da.dims]
+    if len(found) > 1:
+        raise ValueError("levels has both 'period' and 'return_period' dimensions; select one")
+    return found[0] if found else None
+
+
+def _select_period(periods: np.ndarray, period) -> tuple[int, float]:
+    periods = np.asarray(periods, dtype=float).reshape(-1)
+    if periods.size == 0:
+        raise ValueError("levels has no return period")
+    if period is None:
+        if periods.size != 1:
+            shown = ", ".join(f"{p:g}" for p in periods)
+            raise ValueError(f"levels has return periods ({shown}); pass period= to choose one")
+        return 0, float(periods[0])
+    if not np.isscalar(period):
+        raise ValueError("period must be a single return period")
+    chosen = float(period)
+    hits = np.flatnonzero(np.isclose(periods, chosen))
+    if hits.size == 0:
+        shown = ", ".join(f"{p:g}" for p in periods)
+        raise ValueError(f"period {chosen:g} is not among ({shown})")
+    if hits.size > 1:
+        raise ValueError(f"period {chosen:g} matches more than one entry")
+    return int(hits[0]), float(periods[int(hits[0])])
+
+
+def _named_coord(da, names: tuple[str, ...]):
+    for name in names:
+        if name in da.coords:
+            return name, np.asarray(da.coords[name].values, dtype=float)
+    return None, None
+
+
+def _dataarray_field(da):
+    lon_name, lon = _named_coord(da, ("lon", "longitude"))
+    lat_name, lat = _named_coord(da, ("lat", "latitude"))
+    if lon is None or lat is None:
+        return np.asarray(da.values, dtype=float), None
+    if lon_name in da.dims and lat_name in da.dims:
+        others = [dim for dim in da.dims if dim not in (lat_name, lon_name)]
+        if others:
+            shown = ", ".join(repr(dim) for dim in others)
+            raise ValueError(
+                f"levels still has dimension {shown} besides latitude and longitude; "
+                "select one return level per location"
+            )
+        ordered = da.transpose(lat_name, lon_name)
+        return (
+            np.asarray(ordered.values, dtype=float),
+            (
+                np.asarray(ordered.coords[lon_name].values, dtype=float),
+                np.asarray(ordered.coords[lat_name].values, dtype=float),
+            ),
+        )
+    return np.asarray(da.values, dtype=float), (lon, lat)
+
+
+def _units_attr(obj) -> str | None:
+    attrs = getattr(obj, "attrs", None)
+    if not isinstance(attrs, dict):
+        return None
+    units = attrs.get("units")
+    if units is None:
+        return None
+    text = str(units).strip()
+    return text or None
+
+
+def _align_map(values, lon, lat):
+    values = np.asarray(values, dtype=float)
+    lon = np.atleast_1d(np.asarray(lon, dtype=float))
+    lat = np.atleast_1d(np.asarray(lat, dtype=float))
+    candidates = [np.atleast_1d(values)]
+    squeezed = np.atleast_1d(np.squeeze(values))
+    if squeezed.shape != candidates[0].shape:
+        candidates.append(squeezed)
+    for candidate in candidates:
+        kind = _map_kind(candidate, lon, lat)
+        if kind is not None:
+            if kind == "scatter" and candidate.shape != lon.shape:
+                return kind, candidate.ravel(), lon.ravel(), lat.ravel()
+            return kind, candidate, lon, lat
+    raise ValueError(
+        f"levels shape {tuple(np.asarray(values).shape)} does not match "
+        f"lon {tuple(np.asarray(lon).shape)} and lat {tuple(np.asarray(lat).shape)}. "
+        "Pass one return level per location (select a return period, and one covariate "
+        "row when the fit is non-stationary)."
+    )
+
+
+def _map_kind(values, lon, lat) -> str | None:
+    if values.ndim == 2 and lat.ndim == 1 and lon.ndim == 1 and values.shape == (lat.size, lon.size):
+        return "mesh"
+    if values.ndim == 2 and lon.shape == values.shape and lat.shape == values.shape:
+        return "mesh"
+    if values.shape == lon.shape == lat.shape and values.ndim == 1:
+        return "scatter"
+    if values.size == lon.size == lat.size and values.ndim <= 2 and lon.ndim == 1 and lat.ndim == 1:
+        return "scatter"
+    return None
+
+
+def _geo_aspect(lat) -> float | None:
+    finite = np.asarray(lat, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        return None
+    mean = float(np.mean(finite))
+    if abs(mean) > 90.0:
+        return None
+    cosine = float(np.cos(np.deg2rad(mean)))
+    if cosine < 0.2:
+        return None
+    return 1.0 / cosine
+
+
+def _plain_deg(ax):
+    import matplotlib.ticker as mticker
+
+    for axis in (ax.xaxis, ax.yaxis):
+        fmt = mticker.ScalarFormatter(useOffset=False)
+        fmt.set_scientific(False)
+        axis.set_major_formatter(fmt)

@@ -29,7 +29,7 @@ Source: https://github.com/rare-labs/tails
 | ECCC / GeoMet | `from tails.datasets import eccc_daily, eccc_hourly` — `eccc_daily("701S001", 2020)` |
 | How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")`. `unit` is the sentence label (`"mm"`, `"basis points"`, `"USD per million Btu"`, `"million claims"`, `"Mw"`, …) |
 | Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
-| Plots | `fit.plot_diagnostics()` (stationary 2×2, or a non-stationary GEV trend), `tails.plot_threshold(series, unit=...)`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
+| Plots | `fit.plot_diagnostics()` (stationary 2×2, or a non-stationary GEV trend), `tails.plot_threshold(series, unit=...)`, `fit.return_level(...).plot()`, `IDFFit.plot()`, `tails.plot_return_level_map(levels, lon, lat)` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")`. Gridded IDF: `tx.fit_idf(intensity, year="year", duration="duration")`, then `tx.idf_quantile(ds, [1.0], [100])` |
 | xclim frequency analysis | `import tails.xclim`, then `frequency_analysis(da, "max", [20, 100], "genextreme", backend="tails", ci="profile")` from `xclim.compute.stats` (xclim ≥ 1) or `xclim.indices.stats` (xclim 0.x). The returned `c` is scipy's: `c = -ξ` for genextreme, `c = ξ` for genpareto |
 | Bayesian GEV | `from tails.bayes import fit_gev_bayes` (extra `rare-tails[bayes]`) |
@@ -112,7 +112,10 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
   the mean-excess ribbon, modified scale, shape, and the ForwardStop
   threshold. `IDFFit.plot()` (curves + CI ribbons + empirical return-period
   points) requires `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
-  use `plot_diagnostics()` or `ReturnLevels.plot()`.
+  use `plot_diagnostics()` or `ReturnLevels.plot()`. A batch of return
+  levels is `tails.plot_return_level_map(levels, lon, lat)` (or
+  `ReturnLevels.plot_map`). Coordinates are the data's longitude and
+  latitude, in degrees. The colour scale is in the units of the fit.
 - **Covariates** are centred and scaled internally; reported coefficients
   are on the user’s scale. Shape covariates are usually a bad idea unless
   you have a long record and a good reason.
