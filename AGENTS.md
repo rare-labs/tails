@@ -27,7 +27,7 @@ Source: https://github.com/rare-labs/tails
 | IDF | `from tails.idf import IDFData, fit_idf, scaling_test` |
 | Bundled data | `from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf` |
 | ECCC / GeoMet | `from tails.datasets import eccc_daily, eccc_hourly` — `eccc_daily("701S001", 2020)` |
-| How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")` |
+| How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")`. `unit` is the sentence label (`"mm"`, `"basis points"`, `"USD per million Btu"`, `"million claims"`, `"Mw"`, …) |
 | Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
 | Plots | `fit.plot_diagnostics()` (stationary 2×2, or a non-stationary GEV trend), `tails.plot_threshold(series, unit=...)`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")`. Gridded IDF: `tx.fit_idf(intensity, year="year", duration="duration")`, then `tx.idf_quantile(ds, [1.0], [100])` |
@@ -61,6 +61,15 @@ years (`tails.how_rare` reports a 1-in-138-year event, 95% profile CI 30–1212 
 `fit_block_maxima` on the same series with `model="aic"` selects the Gumbel
 model (ξ fixed at 0; AIC 517.9 against 519.8). That 100-year level is 104.7 mm
 (95% profile CI 94.9–117.6 mm). `model="gev"` keeps the three-parameter fit.
+
+The how-to also runs `tails.how_rare` on four public annual-maximum series
+outside rainfall. A 39-basis-point rise in the US 10-year par yield (Treasury,
+4 April 1994) is a 1-in-74-year event (95% profile CI 13–758 years). Henry
+Hub at 23.86 USD per million Btu (EIA RNGWHHD, 17 February 2021) is a
+1-in-24-year event (7.1–70). The US initial-claims week of 6.137 million
+(ETA via FRED ICSA, week ending 4 April 2020) is a 1-in-6654-year event
+(4251–50099). The 1960 Valdivia earthquake, Mw 9.5 (USGS), is a 1-in-123-year
+annual maximum (29–1004).
 
 **IDF, same station:** `scaling_test(data, "simple")` ≈ 0.0079 (reject);
 `scaling_test(data, "general")` ≈ 0.78 (ok). `fit_idf(data, "general", "matern")`

@@ -128,6 +128,11 @@ fit = tails.fit_gev(y)  # y = the 24h column
 # Return period of 105.4 mm: 138.3 years.
 # tails.how_rare(depth, "2005-01-01", ci="profile", unit="mm", name="Québec City")
 #   "A value of 105.4 mm in 2005 at Québec City is a 1-in-138-year event (95% CI: 30–1212 years)."
+# Public how_rare examples in docs/howto.md (annual maxima; sources in that page):
+#   Treasury 10-year, 39 basis points in 1994: "A value of 39 basis points in 1994 is a 1-in-74-year event (95% CI: 13–758 years)."
+#   Henry Hub, 23.86 USD per million Btu in 2021: "A value of 23.86 USD per million Btu in 2021 is a 1-in-24-year event (95% CI: 7.1–70 years)."
+#   US initial claims, 6.137 million in 2020: "A value of 6.137 million claims in 2020 is a 1-in-6654-year event (95% CI: 4251–50099 years)."
+#   USGS Mw 9.5 in 1960: "A value of 9.5 Mw in 1960 is a 1-in-123-year event (95% CI: 29–1004 years)."
 # record_breaks on the same 64 annual maxima: 7 upper records, expected 4.74
 # (ratio 1.48, one-sided p=0.16). Years: 1961, 1962, 1978, 1979, 1996, 1998, 2005
 # (61.7, 71.4, 78.9, 81.2, 83.0, 104.8, 105.4 mm).

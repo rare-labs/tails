@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Worked `tails.how_rare` examples beside the Québec City rainfall storm,
+  on public annual maxima with the source and the units in the how-to: the
+  US Treasury 10-year yield (39 basis points on 4 April 1994), Henry Hub
+  spot gas (23.86 USD per million Btu on 17 February 2021), US weekly
+  initial unemployment claims (6.137 million in the week ending 4 April
+  2020), and the USGS global earthquake catalog (Mw 9.5 in 1960).
 - `tails.plot_threshold` draws the mean-excess ribbon, the GPD modified scale
   and shape, and the ForwardStop threshold. It takes one series and a unit
   string for the axis labels, and needs the `plots` extra
