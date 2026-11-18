@@ -9,10 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Worked `tails.how_rare` examples beside the Québec City rainfall storm: a
-  constructed heat extreme (37.5 °C in 2021, a 1-in-124-year event) and a
-  constructed wind extreme (118 km/h in 2019, a 1-in-154-year event). The
-  bundle is rainfall, so both series are labeled as constructed.
+- Worked `tails.how_rare` examples beside the Québec City rainfall storm,
+  on public annual maxima with the source and the units in the how-to: the
+  US Treasury 10-year yield (39 basis points on 4 April 1994), Henry Hub
+  spot gas (23.86 USD per million Btu on 17 February 2021), US weekly
+  initial unemployment claims (6.137 million in the week ending 4 April
+  2020), and the USGS global earthquake catalog (Mw 9.5 in 1960).
 
 ## [0.1.0] — 2026-11-18
 

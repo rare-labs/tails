@@ -44,11 +44,14 @@ p = float(gev_cdf(105.4, loc, scale, shape))
 
 That 138-year figure is what `tails.how_rare` reports for this storm
 (`unit="mm"`). The same one-liner takes any block-maxima series, and `unit`
-is only the label in the sentence. The [how-to](howto.md#how-rare-was-this)
-runs it on two constructed series, because the bundle is rainfall: a summer
-maximum of 37.5 °C is a 1-in-124-year event (95% profile interval 20–4580
-years), and an annual maximum gust of 118 km/h is a 1-in-154-year event
-(95% profile interval 24–5155 years).
+is the label in the sentence. The [how-to](howto.md#how-rare-was-this) runs
+it on four public series outside rainfall, with the source and the units in
+the text: a 39-basis-point rise in the US 10-year yield (4 April 1994, a
+1-in-74-year event, 95% profile interval 13–758 years), a Henry Hub price of
+23.86 USD per million Btu (17 February 2021, 1-in-24 years, 7.1–70), a week
+of 6.137 million US initial unemployment claims (week ending 4 April 2020,
+1-in-6654 years, 4251–50099), and the 1960 Valdivia earthquake at Mw 9.5
+(1-in-123 years, 29–1004).
 
 The 1-hour annual maximum at the same station, 59.9 mm in 1979, has a
 single-duration GEV return period of about 129 years. A joint IDF model

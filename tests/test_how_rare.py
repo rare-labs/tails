@@ -67,54 +67,110 @@ def test_how_rare_rejects_date_without_index():
         tails.how_rare(np.arange(20.0), "2005-07-01")
 
 
-def _constructed_gev(start, end, loc, scale, xi, spike_year, spike, seed):
-    """Weibull quantiles of a GEV, shuffled, with one year replaced.
-
-    Matches the constructed heat and wind snippets in ``docs/howto.md``.
-    """
-    years = np.arange(start, end)
-    p = (np.arange(1, len(years) + 1) - 0.5) / len(years)
-    values = np.round(loc + scale / xi * ((-np.log(p)) ** (-xi) - 1.0), 1)
-    np.random.default_rng(seed).shuffle(values)
-    values[years == spike_year] = spike
-    return pd.Series(values, index=pd.to_datetime(years.astype(str), format="%Y"))
+def _annual(start, values):
+    years = range(start, start + len(values))
+    return pd.Series(values, index=pd.to_datetime([f"{y}-01-01" for y in years]))
 
 
-def test_how_rare_constructed_heat_and_wind():
-    # Published numbers from docs/howto.md and docs/index.md.
-    heat = _constructed_gev(1978, 2026, 32.0, 1.45, -0.18, 2021, 37.5, 11)
-    heat_result = tails.how_rare(heat, "2021-01-01", ci="profile", unit="°C")
-    assert heat_result.date is not None and heat_result.date.year == 2021
-    np.testing.assert_allclose(heat_result.value, 37.5)
-    np.testing.assert_allclose(heat_result.return_period, 124.4237339595553, rtol=1e-6)
-    np.testing.assert_allclose(heat_result.lower, 20.43750126172065, rtol=1e-6)
-    np.testing.assert_allclose(heat_result.upper, 4579.87261097234, rtol=1e-6)
-    assert heat_result.sentence == (
-        "A value of 37.5 °C in 2021 is a 1-in-124-year event (95% CI: 20–4580 years)."
-    )
+# Annual maxima copied in docs/howto.md. Each list is a published series, not a draw.
+_TREASURY_BP = [
+    28, 11, 17, 15, 39, 18, 34, 18, 22, 21, 16, 25, 24, 24, 24, 14, 12, 16,
+    24, 24, 20, 19, 15, 21, 10, 15, 19, 10, 10, 11, 29, 16, 28, 15, 19, 14,
+]
+_HENRY_HUB = [
+    4.71, 2.61, 3.10, 10.48, 10.31, 5.31, 18.48, 8.12, 14.84, 9.90,
+    8.16, 13.31, 6.10, 7.51, 4.92, 3.77, 4.52, 8.15, 3.32, 3.80,
+    3.71, 6.24, 4.25, 3.14, 23.86, 9.85, 3.78, 13.20, 9.86,
+]
+_CLAIMS_MILLION = [
+    0.310, 0.251, 0.232, 0.374, 0.359, 0.350, 0.326, 0.537, 0.575, 0.423,
+    0.565, 0.429, 0.471, 0.642, 0.558, 0.695, 0.534, 0.439, 0.426, 0.416,
+    0.370, 0.361, 0.407, 0.474, 0.509, 0.564, 0.415, 0.406, 0.390, 0.426,
+    0.347, 0.376, 0.345, 0.364, 0.517, 0.479, 0.450, 0.380, 0.424, 0.349,
+    0.360, 0.587, 0.665, 0.507, 0.468, 0.446, 0.375, 0.345, 0.317, 0.290,
+    0.297, 0.252, 0.247, 6.137, 0.890, 0.250, 0.259, 0.258, 0.259,
+]
+_USGS_MW = [
+    8.60, 7.81, 9.00, 7.90, 7.80, 7.52, 7.70, 8.60, 8.30, 7.90,
+    9.50, 7.60, 7.47, 8.50, 9.20, 8.70, 8.10, 7.30, 8.20, 8.20,
+    8.00, 8.10, 8.00, 7.70, 7.60, 7.90, 8.00, 8.30, 7.70, 7.90,
+    7.90, 7.70, 7.29, 7.60, 7.60, 8.00, 8.00, 7.90, 7.80, 8.02,
+    7.80, 7.60, 7.80, 7.80, 8.30, 8.00, 8.09, 7.80, 8.10, 7.70,
+    8.00, 8.40, 7.90, 8.16, 9.10, 8.60, 8.30, 8.40, 7.90, 8.10,
+    8.80, 9.10, 8.60, 8.30, 8.20, 8.30, 7.90, 8.20, 8.20, 8.00,
+    7.80, 8.20, 7.60, 7.80, 7.50, 8.80,
+]
 
-    wind = _constructed_gev(1978, 2026, 82.0, 7.5, -0.12, 2019, 118.0, 19)
-    wind_result = tails.how_rare(wind, "2019-01-01", ci="profile", unit="km/h")
-    assert wind_result.date is not None and wind_result.date.year == 2019
-    np.testing.assert_allclose(wind_result.value, 118.0)
-    np.testing.assert_allclose(wind_result.return_period, 154.1470027958524, rtol=1e-6)
-    np.testing.assert_allclose(wind_result.lower, 24.011442238242225, rtol=1e-6)
-    np.testing.assert_allclose(wind_result.upper, 5155.165603518771, rtol=1e-6)
-    assert wind_result.sentence == (
-        "A value of 118 km/h in 2019 is a 1-in-154-year event (95% CI: 24–5155 years)."
-    )
+
+@pytest.mark.parametrize(
+    ("start", "values", "date", "unit", "sentence", "period", "lower", "upper"),
+    [
+        (
+            1990,
+            _TREASURY_BP,
+            "1994-01-01",
+            "basis points",
+            "A value of 39 basis points in 1994 is a 1-in-74-year event (95% CI: 13–758 years).",
+            73.672219,
+            12.891339,
+            757.699316,
+        ),
+        (
+            1997,
+            _HENRY_HUB,
+            "2021-01-01",
+            "USD per million Btu",
+            "A value of 23.86 USD per million Btu in 2021 is a 1-in-24-year event (95% CI: 7.1–70 years).",
+            23.639831,
+            7.080600,
+            70.353989,
+        ),
+        (
+            1967,
+            _CLAIMS_MILLION,
+            "2020-01-01",
+            "million claims",
+            "A value of 6.137 million claims in 2020 is a 1-in-6654-year event (95% CI: 4251–50099 years).",
+            6653.506723,
+            4250.794578,
+            50099.412687,
+        ),
+        (
+            1950,
+            _USGS_MW,
+            "1960-01-01",
+            "Mw",
+            "A value of 9.5 Mw in 1960 is a 1-in-123-year event (95% CI: 29–1004 years).",
+            123.446509,
+            29.326637,
+            1003.947013,
+        ),
+    ],
+)
+def test_how_rare_public_annual_maxima(start, values, date, unit, sentence, period, lower, upper):
+    result = tails.how_rare(_annual(start, values), date, ci="profile", unit=unit)
+    assert result.sentence == sentence
+    assert result.date is not None and result.date.year == int(date[:4])
+    np.testing.assert_allclose(result.return_period, period, rtol=1e-4)
+    np.testing.assert_allclose(result.lower, lower, rtol=1e-4)
+    np.testing.assert_allclose(result.upper, upper, rtol=1e-4)
 
 
-def test_how_rare_docs_quote_constructed_examples():
+def test_how_rare_docs_quote_public_examples():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    heat = "A value of 37.5 °C in 2021 is a 1-in-124-year event (95% CI: 20–4580 years)."
-    wind = "A value of 118 km/h in 2019 is a 1-in-154-year event (95% CI: 24–5155 years)."
     howto = (root / "docs" / "howto.md").read_text(encoding="utf-8")
     index = (root / "docs" / "index.md").read_text(encoding="utf-8")
-    assert heat in howto
-    assert wind in howto
-    assert "37.5 °C" in index and "1-in-124-year" in index
-    assert "118 km/h" in index and "1-in-154-year" in index
-    assert 'unit="°C"' in howto and 'unit="km/h"' in howto
+    sentences = [
+        "A value of 39 basis points in 1994 is a 1-in-74-year event (95% CI: 13–758 years).",
+        "A value of 23.86 USD per million Btu in 2021 is a 1-in-24-year event (95% CI: 7.1–70 years).",
+        "A value of 6.137 million claims in 2020 is a 1-in-6654-year event (95% CI: 4251–50099 years).",
+        "A value of 9.5 Mw in 1960 is a 1-in-123-year event (95% CI: 29–1004 years).",
+    ]
+    for sentence in sentences:
+        assert sentence in howto
+    for fragment in ("39-basis-point", "23.86 USD per million Btu", "6.137 million", "Mw 9.5"):
+        assert fragment in index
+    assert "37.5 °C" not in howto
+    assert "118 km/h" not in howto
