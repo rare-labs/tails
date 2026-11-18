@@ -65,8 +65,10 @@ has a return period of about 138 years.
   of series, and it has no IDF module.
 - **xclim** is where a lot of Canadian climate work already lives. Its
   frequency analysis returns a point return level on an xarray/Dask grid.
-  tails is the engine you want when you also need profile-likelihood
-  intervals, non-stationary models, or IDF curves.
+  `tails.xclim.frequency_analysis` follows that workflow and computes the
+  fit in one batched call, with an optional delta, profile or bootstrap
+  interval for the GEV. The shape it reports is ξ, not scipy's `c`.
+  Non-stationary models and IDF curves stay on `fit_gev` and `tails.idf`.
 
 A wider comparison is in [docs/landscape.md](docs/landscape.md). A worked IDF
 example on the same Québec City station is in

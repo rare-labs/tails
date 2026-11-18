@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tails.xclim`: frequency analysis on an xarray DataArray (`fit`, `fa`,
+  `frequency_analysis`), using the same batched JAX GEV and GPD fits as the
+  rest of tails. The shape parameter is ξ. GEV return levels accept delta,
+  profile and bootstrap intervals. `as_scipy_params` is the explicit
+  conversion to scipy's `c` (`c = -ξ` for the GEV, `c = ξ` for the GPD).
+  Stationary models only; method of moments, maximum spacing and a
+  constrained Gumbel fit are not implemented. A GPD return level here is a
+  quantile of the fitted sample, not a peaks-over-threshold annual level.
+
 - Persistent JAX compilation cache, on by default, in `$TAILS_CACHE/jax` (default
   `~/.cache/tails/jax`). A new Python session reuses kernels compiled by the previous one, so a
   first GEV fit with a profile interval takes under 2 s instead of about 5 s.

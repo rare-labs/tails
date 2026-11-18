@@ -2,7 +2,12 @@
 
 Wraps :func:`tails.fit_gev` with :func:`xarray.apply_ufunc` so that labelled
 dimensions are preserved and Dask-backed arrays are processed chunk by chunk
-(each chunk is itself a single batched JAX fit).
+(each chunk is itself a single batched JAX fit). Coefficients here include
+``log_scale`` and, when requested, covariates.
+
+For a stationary frequency analysis that follows the usual block-maximum
+workflow (annual or seasonal extremes, then a return level), use
+:mod:`tails.xclim`. That module reports natural parameters and the shape ξ.
 """
 
 from __future__ import annotations

@@ -30,10 +30,11 @@ Source: https://github.com/rare-labs/tails
 | How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")` |
 | Plots | `fit.plot_diagnostics()`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")` |
+| xclim-style frequency analysis | `tails.xclim.frequency_analysis(da, "max", [20, 100])` — shape is ξ; `as_scipy_params` converts GEV to scipy `c = -ξ` |
 | Bayesian GEV | `from tails.bayes import fit_gev_bayes` (extra `rare-tails[bayes]`) |
 | Record indicators | `tails.records.record_indicators`, `record_test` |
 
-Submodules `idf`, `xarray`, `bayes`, `datasets` are imported lazily. `import tails`
+Submodules `idf`, `xarray`, `xclim`, `bayes`, `datasets` are imported lazily. `import tails`
 is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare`.
 
 ## Common tasks
@@ -65,8 +66,10 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
 
 - **Package name ≠ import name.** `pip install rare-tails`, then `import tails`.
 - **GEV shape sign.** tails uses the usual ξ (Coles / extRemes / Extremes.jl).
-  `scipy.stats.genextreme` uses `c = -ξ`. Do not copy scipy shape values in
-  blindly.
+ `scipy.stats.genextreme` uses `c = -ξ`. Do not copy scipy shape values in
+ blindly. `tails.xclim` also reports ξ. `tails.xclim.as_scipy_params` is the
+ explicit conversion (`c = -ξ` for the GEV, `c = ξ` for the GPD). Do not pass
+ a `tails.xclim` parameter array to xclim's `parametric_quantile`.
 - **First call is slow, once.** JAX compiles the likelihood and Hessian on
   first use (seconds). tails keeps those compiled kernels in a persistent
   cache (`$TAILS_CACHE/jax`, default `~/.cache/tails/jax`), so a new Python
