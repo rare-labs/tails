@@ -180,8 +180,10 @@ def plot_fit_diagnostics(
 def _return_level_supports(fit, ci) -> bool:
     if ci is None:
         return True
+    if ci == "bootstrap" and getattr(fit, "free_params", None) is not None:
+        return False
     if fit.__class__.__name__ == "POTFit":
-        return ci in (None, "delta")
+        return ci in ("delta", "profile", "bootstrap")
     return True
 
 

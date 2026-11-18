@@ -17,7 +17,13 @@ from .fit import GEVFit, GPDFit, POTFit, ReturnLevels, fit_gev, fit_gpd, fit_pot
 from .lmoments import gev_from_lmoments, gpd_from_lmoments, sample_lmoments
 from .optim import OptimResult, minimize
 from .threshold import ThresholdSelection, mean_residual_life, parameter_stability, select_threshold
-from .uncertainty import bootstrap_coef, profile_return_level
+from .uncertainty import (
+    bootstrap_coef,
+    bootstrap_pot_return_level,
+    profile_covariate_return_level,
+    profile_pot_return_level,
+    profile_return_level,
+)
 
 __all__ = [
     "block_maxima", "decluster_runs", "extremal_index",
@@ -27,5 +33,6 @@ __all__ = [
     "gev_from_lmoments", "gpd_from_lmoments", "sample_lmoments",
     "OptimResult", "minimize",
     "ThresholdSelection", "mean_residual_life", "parameter_stability", "select_threshold",
-    "bootstrap_coef", "profile_return_level",
+    "bootstrap_coef", "bootstrap_pot_return_level", "profile_covariate_return_level",
+    "profile_pot_return_level", "profile_return_level",
 ]

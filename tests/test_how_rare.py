@@ -52,6 +52,16 @@ def test_how_rare_plot_and_float():
     plt.close(result.ax.figure)
 
 
+def test_how_rare_pot_profile_interval():
+    rng = np.random.default_rng(2)
+    x = rng.normal(size=1600)
+    x[:120] = 6.0 + rng.exponential(1.5, size=120)
+    result = tails.how_rare(x, 12.0, model="pot", threshold=6.0, npy=365.25, ci="profile")
+    assert result.model == "pot"
+    assert result.lower < result.return_period < result.upper
+    assert "95% CI" in result.sentence
+
+
 def test_how_rare_rejects_date_without_index():
     with pytest.raises(ValueError, match="DatetimeIndex"):
         tails.how_rare(np.arange(20.0), "2005-07-01")

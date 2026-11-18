@@ -10,8 +10,8 @@
    starting values, where quasi-Newton or Nelder–Mead needs dozens to hundreds of evaluations.
 3. **Masks, not loops.** Missing values, ragged record lengths, threshold exceedances and unobserved
    IDF durations are all boolean masks on rectangular arrays, so heterogeneous problems still batch.
-4. **Uncertainty is part of the batch.** Profile likelihoods (many series × return periods × grid
-   points), bootstrap replicates and candidate thresholds are just more rows.
+4. **Uncertainty is part of the batch.** Profile likelihoods (many series × covariate rows × return
+   periods × grid points), POT and GEV bootstrap replicates and candidate thresholds are just more rows.
 
 ## Why JAX (and not Numba)?
 

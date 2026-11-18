@@ -89,22 +89,32 @@ class SeriesExtremes:
         *,
         ci: str | None = None,
         alpha: float = 0.05,
+        n_boot: int = 500,
+        seed: int = 0,
+        profile_points: int = 41,
     ) -> pd.DataFrame:
         """Return levels at ``periods``, one row per period.
 
         Columns are ``period``, ``estimate``, ``lower`` and ``upper``. For
         block maxima the default interval is the profile likelihood (shape
         stays fixed when the model is Gumbel). For peaks the default is the
-        delta-method interval; profile intervals are not available.
+        delta-method interval. ``ci="profile"`` and ``ci="bootstrap"`` are
+        available for both; an exponential peaks model keeps ξ fixed in the
+        profile interval.
 
         The frame's ``attrs`` record the model, ξ, AIC, the interval and, when
         a comparison was run, the candidate AICs.
         """
         if ci is None:
             ci = "delta" if isinstance(self.fit, POTFit) else "profile"
-        if isinstance(self.fit, POTFit) and ci not in (None, "delta"):
-            raise ValueError("peaks-over-threshold return levels support ci=None or 'delta'")
-        rl = self.fit.return_level(np.atleast_1d(np.asarray(periods, dtype=float)), ci=ci, alpha=alpha)
+        rl = self.fit.return_level(
+            np.atleast_1d(np.asarray(periods, dtype=float)),
+            ci=ci,
+            alpha=alpha,
+            n_boot=n_boot,
+            seed=seed,
+            profile_points=profile_points,
+        )
         table = rl.to_pandas()
         # One series: the batch columns are empty. Keep the return-level columns only.
         keep = [c for c in ("period", "estimate", "lower", "upper") if c in table.columns]

@@ -91,8 +91,10 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
 - **Short records.** A batch will happily fit 11-year series. Cap Tourmente
   (`7041177`) is an example: ξ ≈ 1.24 and a nominal 100-year 24-hour level
   that you must not quote. Filter on `nobs` and ξ.
-- **POT intervals.** `POTFit.return_level` currently supports `ci=None` or
-  `"delta"` only, not profile or bootstrap.
+- **Bootstrap with a fixed shape.** `fixed_shape` (Gumbel, exponential) stays
+  fixed for delta and profile intervals, including POT return levels and
+  non-stationary GEV profiles. Bootstrap refits a free ξ, so `ci="bootstrap"`
+  is rejected; use `"delta"` or `"profile"`.
 - **Plots.** `fit.plot_diagnostics()` (GEV/GPD/POT, stationary) and
   `IDFFit.plot()` (curves + CI ribbons + empirical return-period points)
   require `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
