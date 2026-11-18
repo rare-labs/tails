@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `import tails.xclim` registers an optional backend on xclim frequency
+  analysis (`xclim.compute.stats` in xclim 1.0 and later, `xclim.indices.stats`
+  in xclim 0.x). `frequency_analysis(..., backend="tails", ci="profile")` and
+  `fit(..., backend="tails")` then use tails' batched GEV and GPD fits.
+  The parameter array stays in scipy order (`c = -ξ` for genextreme,
+  `c = ξ` for genpareto), so `parametric_quantile` still applies. A GEV
+  interval (`ci="delta"`, `"profile"` or `"bootstrap"`) comes back as a
+  Dataset of `return_level`, `lower` and `upper`. Stationary models; methods
+  ML, PWM and GMLE. Method of moments, maximum spacing and a constrained
+  Gumbel are not on this backend. A GPD level is a quantile of the fitted
+  sample (optional scalar `threshold`), not a peaks-over-threshold annual level.
 - `tails.fit_block_maxima` and `tails.fit_peaks` turn one datetime series into
   block maxima or declustered peaks, fit them, and return a return-level table
   from `summary()`. `model="aic"` compares the GEV with the Gumbel model

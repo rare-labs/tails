@@ -80,6 +80,10 @@ test = [
 ]
 docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.25", "matplotlib>=3.7", "pymdown-extensions"]
 all = ["rare-tails[xarray,bayes,plots]"]
+xclim = ["xclim>=0.48", "xarray>=2023.1"]
+
+[project.entry-points."xclim.stats.backends"]
+tails = "tails.xclim:register"
 
 [project.urls]
 Homepage = "https://github.com/rare-labs/tails"

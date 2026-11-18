@@ -22,7 +22,7 @@ nav:
   - API reference:
       - Core: api/core.md
       - IDF: api/idf.md
-      - xarray, records, datasets, Bayes: api/extras.md
+      - xarray, xclim, records, datasets, Bayes: api/extras.md
   - Credits: credits.md
 plugins:
   - search

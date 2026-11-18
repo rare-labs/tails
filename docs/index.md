@@ -18,9 +18,11 @@ earlier: `fit_block_maxima` or `fit_peaks` extracts the sample and
 diagnostic figure in the style of
 [pyextremes](https://georgebv.github.io/pyextremes/), that package is still
 the one built around those plots. If you already work in [xclim](https://xclim.readthedocs.io/),
-its frequency analysis will give you a point return level on a DataArray;
-tails is for when you also want profile-likelihood intervals, non-stationary
-models, or IDF curves.
+`import tails.xclim` and keep calling `frequency_analysis` with
+`backend="tails"` and, when you want an interval, `ci="profile"`. On xclim
+1.0 the import is `xclim.compute.stats`; on xclim 0.x it is
+`xclim.indices.stats`. Genextreme's `c` in the parameter array equals −ξ.
+Non-stationary models and IDF curves stay on `tails.fit_gev` and `tails.idf`.
 
 Start with the [Quickstart](quickstart.md) or the
 [Québec City IDF tutorial](tutorial_quebec_idf.md).

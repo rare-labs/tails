@@ -12,6 +12,7 @@ tails.core     GEV / GPD / POT models, thresholds, uncertainty, optimiser
 tails.idf      Intensity-duration-frequency models (port of IDFCurves.jl)
 tails.records  Distribution-free record statistics
 tails.xarray   xarray / Dask wrappers for gridded and multi-station data
+tails.xclim    registers backend="tails" on xclim frequency analysis
 tails.bayes    Optional NumPyro posterior sampling
 tails.datasets Bundled and downloadable real datasets (ECCC IDF and GeoMet)
 """
@@ -44,6 +45,6 @@ __all__ = [
 def __getattr__(name):  # lazy heavy submodules
     import importlib
 
-    if name in {"idf", "xarray", "bayes", "datasets"}:
+    if name in {"idf", "xarray", "xclim", "bayes", "datasets"}:
         return importlib.import_module(f"tails.{name}")
     raise AttributeError(name)

@@ -31,10 +31,11 @@ Source: https://github.com/rare-labs/tails
 | Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
 | Plots | `fit.plot_diagnostics()`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")` |
+| xclim frequency analysis | `import tails.xclim`, then `frequency_analysis(da, "max", [20, 100], "genextreme", backend="tails", ci="profile")` from `xclim.compute.stats` (xclim ≥ 1) or `xclim.indices.stats` (xclim 0.x). The returned `c` is scipy's: `c = -ξ` for genextreme, `c = ξ` for genpareto |
 | Bayesian GEV | `from tails.bayes import fit_gev_bayes` (extra `rare-tails[bayes]`) |
 | Record indicators | `tails.records.record_indicators`, `record_test` |
 
-Submodules `idf`, `xarray`, `bayes`, `datasets` are imported lazily. `import tails`
+Submodules `idf`, `xarray`, `xclim`, `bayes`, `datasets` are imported lazily. `import tails`
 is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare` / `fit_block_maxima`
 / `fit_peaks`.
 
@@ -70,8 +71,9 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
 
 - **Package name ≠ import name.** `pip install rare-tails`, then `import tails`.
 - **GEV shape sign.** tails uses the usual ξ (Coles / extRemes / Extremes.jl).
-  `scipy.stats.genextreme` uses `c = -ξ`. Do not copy scipy shape values in
-  blindly.
+ `scipy.stats.genextreme` uses `c = -ξ`. Copying a scipy `c` into `fit_gev`'s
+ shape uses the wrong sign. The xclim backend returns scipy's `(c, loc, scale)`
+ so `parametric_quantile` still works: genextreme `c = -ξ`, genpareto `c = ξ`.
 - **First call is slow, once.** JAX compiles the likelihood and Hessian on
   first use (seconds). tails keeps those compiled kernels in a persistent
   cache (`$TAILS_CACHE/jax`, default `~/.cache/tails/jax`), so a new Python
