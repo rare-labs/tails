@@ -73,8 +73,9 @@ def how_rare(
         ``"gev"`` (annual / block maxima) or ``"pot"`` (peaks over
         ``threshold``).
     ci
-        ``"profile"`` (GEV, default), ``"delta"``, ``"bootstrap"``, or
-        ``None``. POT supports ``"delta"`` only.
+        ``"profile"`` (default), ``"delta"``, ``"bootstrap"``, or ``None``.
+        Profile and bootstrap intervals are available for the GEV and for
+        peaks-over-threshold.
     plot
         If True, draw a return-level curve, a CI ribbon, and a marker for
         the event. Requires matplotlib (``rare-tails[plots]``).
@@ -105,8 +106,8 @@ def how_rare(
     elif model == "pot":
         if threshold is None:
             raise ValueError("model='pot' requires a threshold")
-        if ci == "profile":
-            ci = "delta"  # POT has no profile intervals yet
+        if ci not in (None, "delta", "bootstrap", "profile"):
+            raise ValueError("ci must be None, 'delta', 'profile' or 'bootstrap'")
         x = np.asarray(s, float)
         fit = fit_pot(x, threshold, npy=npy)
         T, lo, hi = _period_from_pot(fit, value, ci=ci, alpha=alpha)
@@ -116,7 +117,7 @@ def how_rare(
     sentence = _sentence(value, T, lo, hi, alpha, unit, name, event_date, annual=annual_index)
     out_ax = None
     if plot or ax is not None:
-        out_ax = _plot_event(fit, value, T, lo, hi, alpha, unit, name, event_date, ax)
+        out_ax = _plot_event(fit, value, T, lo, hi, alpha, unit, name, event_date, ax, ci)
     return HowRare(
         value=float(value),
         return_period=float(T),
@@ -366,16 +367,16 @@ def _sentence(value, T, lo, hi, alpha, unit, name, event_date, annual: bool = Fa
     return ev + "."
 
 
-def _plot_event(fit, value, T, lo, hi, alpha, unit, name, event_date, ax):
+def _plot_event(fit, value, T, lo, hi, alpha, unit, name, event_date, ax, ci):
     from .plotting import apply_axes_style, color, require_matplotlib
 
     plt = require_matplotlib()
     ax = ax or plt.subplots(figsize=(6.4, 4.0))[1]
     tmax = 100.0 if not np.isfinite(T) else max(100.0, 2 * T, 10.0)
     periods = np.geomspace(1.1, tmax, 80)
-    ci = "delta" if isinstance(fit, POTFit) else "profile"
+    plot_ci = ci if ci in ("delta", "profile", "bootstrap") else None
     try:
-        rl = fit.return_level(periods, ci=ci, alpha=alpha)
+        rl = fit.return_level(periods, ci=plot_ci, alpha=alpha)
     except Exception:
         rl = fit.return_level(periods, ci="delta", alpha=alpha)
     est = np.asarray(rl.estimate).reshape(-1)

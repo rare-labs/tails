@@ -111,8 +111,22 @@ def test_peaks_decluster_inference_and_exponential_level():
     table = ext.summary(periods=[2, 10])
     assert table.attrs["ci"] == "delta"
     assert table["estimate"].is_monotonic_increasing
-    with pytest.raises(ValueError, match="delta"):
-        ext.summary(ci="profile")
+
+
+def test_peaks_summary_accepts_profile_and_bootstrap():
+    rng = np.random.default_rng(4)
+    index = pd.date_range("2000-01-01", periods=1800, freq="D")
+    values = rng.normal(size=len(index))
+    excess = stats.genpareto.rvs(0.2, scale=1.4, size=160, random_state=rng)
+    values[:160] = 2.0 + excess
+    series = pd.Series(values, index=index)
+    ext = tails.fit_peaks(series, threshold=2.0, model="gpd", npy=365.25)
+    table = ext.summary(periods=[10, 40], ci="profile", profile_points=21)
+    assert table.attrs["ci"] == "profile"
+    assert np.all(table["lower"] < table["estimate"]) and np.all(table["estimate"] < table["upper"])
+    boot = ext.summary(periods=[15], ci="bootstrap", n_boot=30, seed=1)
+    assert boot.attrs["ci"] == "bootstrap"
+    assert float(boot["lower"].iloc[0]) < float(boot["estimate"].iloc[0]) < float(boot["upper"].iloc[0])
 
 
 def test_peaks_aic_on_heavy_tail_prefers_gpd():
