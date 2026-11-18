@@ -1,0 +1,116 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rare-tails"
+version = "0.1.0"
+description = "Batched extreme-value analysis in Python: GEV, GPD, peaks over threshold, and IDF curves, for one station or thousands of series."
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { file = "LICENSE" }
+authors = [
+  { name = "Charles-Auguste Marois" },
+  { name = "rare-labs" },
+]
+requires-python = ">=3.10"
+keywords = [
+  "extreme value",
+  "extreme value analysis",
+  "extreme value theory",
+  "GEV",
+  "GPD",
+  "peaks over threshold",
+  "return period",
+  "return levels",
+  "IDF curves",
+  "intensity duration frequency",
+  "hydrology",
+  "climate",
+  "climate extremes",
+  "JAX",
+  "xarray",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Atmospheric Science",
+  "Topic :: Scientific/Engineering :: Hydrology",
+  "Topic :: Scientific/Engineering :: Mathematics",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Typing :: Typed",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "jax[cpu]>=0.4.30",
+  "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+xarray = ["xarray>=2023.1", "dask[array]>=2023.1"]
+bayes = ["numpyro>=0.15"]
+plots = ["matplotlib>=3.7"]
+dev = [
+  "pytest>=7",
+  "hypothesis>=6.90",
+  "pytest-cov",
+  "ruff",
+  "build",
+  "twine",
+  "xarray>=2023.1",
+  "dask[array]>=2023.1",
+  "matplotlib>=3.7",
+]
+test = [
+  "pytest>=7",
+  "hypothesis>=6.90",
+  "pytest-cov",
+  "xarray>=2023.1",
+  "dask[array]>=2023.1",
+  "matplotlib>=3.7",
+]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.25", "matplotlib>=3.7", "pymdown-extensions"]
+all = ["rare-tails[xarray,bayes,plots]"]
+
+[project.urls]
+Homepage = "https://github.com/rare-labs/tails"
+Documentation = "https://rare-labs.github.io/tails/"
+Repository = "https://github.com/rare-labs/tails"
+Issues = "https://github.com/rare-labs/tails/issues"
+Changelog = "https://github.com/rare-labs/tails/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tails"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src/tails",
+  "/tests",
+  "/README.md",
+  "/LICENSE",
+  "/NOTICE",
+  "/CHANGELOG.md",
+  "/pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = ["slow: long-running tests"]
+
+[tool.ruff]
+line-length = 120
+src = ["src"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E741", "B905", "E501"]

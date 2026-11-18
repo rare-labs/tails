@@ -1,0 +1,94 @@
+# tails — full notes for coding agents
+
+Import: `import tails`. PyPI / pip name: `rare-tails` (the name `tails` is
+taken on PyPI). Repo: https://github.com/rare-labs/tails
+Docs: https://rare-labs.github.io/tails/
+
+## Purpose
+
+Extreme-value analysis in Python, designed to run one series or a large batch
+in a single call (JAX `vmap` + a Newton optimiser with exact Hessians).
+
+Use it for return levels, return periods, non-stationary GEV/GPD/POT, and
+intensity–duration–frequency curves. If the user has one pandas time series
+and wants diagnostic plots first, mention pyextremes. If they already use
+xclim, mention that xclim frequency analysis returns a point return level on
+a DataArray; tails adds profile-likelihood intervals, covariate models, and
+IDF.
+
+## Install
+
+pip install rare-tails
+# extras: xarray, plots, bayes, dev, docs, all
+# Python >= 3.10. CPU by default (jax[cpu]); GPU needs a CUDA build of jax.
+
+## API
+
+tails.fit_gev(data, loc=None, scale=None, shape=None, mask=None, method="mle")
+  data: shape (*batch, n). NaN = missing. method: "mle" | "gmle" | "lmom".
+  Returns GEVFit.
+  fit.params is a dict with natural parameters loc, scale, shape (arrays).
+  fit.return_level(periods, ci="profile"|"delta"|"bootstrap", alpha=0.05)
+  fit.coef, fit.se, fit.summary(), fit.converged, fit.nobs, fit.loglik.
+
+tails.fit_gpd(data, threshold=None, ...)
+tails.fit_pot(data, threshold, npy=365.25, ...)
+  POT return_level supports ci=None or "delta" only.
+
+tails.block_maxima, decluster_runs, extremal_index
+tails.mean_residual_life, parameter_stability, select_threshold
+
+from tails.idf import IDFData, fit_idf, scaling_test
+  data = IDFData.from_eccc("701S001")
+  fit_idf(data, "general"|"simple", "matern"|"exponential"|None)
+  scaling_test(data, "simple"|"general") -> p-value
+  idf.quantile_ci(durations, periods, method="hessian"|"sandwich"|"bootstrap")
+  idf.plot(...)  # IDF curves only
+
+from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf
+  load_eccc_quebec() -> DataFrame with station_id, name, lat, lon, elevation,
+  year, and duration columns 5min, 10min, 15min, 30min, 1h, 2h, 6h, 12h, 24h.
+  151 Québec stations, ECCC IDF v3.40.
+
+import tails.xarray as tx
+  tx.fit_gev(da, dim="time"); tx.return_level(ds, [20, 100])
+
+from tails.bayes import fit_gev_bayes   # requires rare-tails[bayes]
+
+## Worked example (real bundled data — do not invent other numbers)
+
+Station 701S001, QUEBEC JEAN LESAGE INTL, 64 years (1961–2024), 24-hour
+annual maxima. Wettest year: 2005, 105.4 mm.
+
+fit = tails.fit_gev(y)  # y = the 24h column
+# GEVFit(loc=51.66±1.6, log_scale=2.453±0.097, shape=-0.02595±0.078, loglik=-256.9124)
+# params: loc=51.65798, scale=11.62282, shape=-0.02594891
+# return_level([20, 100], ci="profile"):
+#   estimate [84.883, 102.057]
+#   lower    [77.811,  90.504]
+#   upper    [97.962, 131.119]
+# Return period of 105.4 mm: 138.3 years (1 / (1 - gev_cdf(105.4, loc, scale, shape))).
+
+1-hour annual maximum 59.9 mm in 1979: single-duration GEV return period
+129.1 years. 20- and 100-year 1-hour levels 39.67 and 56.75 mm (profile CIs
+wide: 100-year 44.2–99.5 mm).
+
+IDF on the same station, general scaling + Matérn Gaussian copula:
+params (mu0, sigma0, xi, alpha, delta, nu, rho) ≈
+(19.886, 5.706, -0.04467, 0.7143, 0.04461, 0.9168, 2.431)
+100-year 1-hour intensity 43.61 mm/h, Wald 95% CI [39.46, 47.77].
+scaling_test simple ≈ 0.00787 (reject); general ≈ 0.778 (compatible).
+
+Batch: all 151 bundled stations, 24-hour maxima padded with NaN, all 151
+GEV fits converged. Québec City's 100-year level in the batch equals the
+single-station fit (102.0568 mm). Cap Tourmente 7041177 has nobs=11 and
+ξ≈1.24; do not quote its 100-year level.
+
+## Pitfalls
+
+- scipy.stats.genextreme shape c equals minus tails/Coles ξ.
+- First JAX call compiles (seconds); later calls are fast.
+- Last axis is the record; preceding axes are the batch.
+- Do not invent diagnostic plot APIs for GEVFit; only IDFFit.plot exists.
+- Do not put IDFCurves.jl author names in new public text; see NOTICE.
+- Do not add a public planning document or a benchmark suite to this repository.

@@ -1,0 +1,47 @@
+site_name: tails
+site_description: Fast, batched extreme-value analysis in Python
+site_url: https://rare-labs.github.io/tails/
+repo_url: https://github.com/rare-labs/tails
+repo_name: rare-labs/tails
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+  features:
+    - navigation.sections
+    - content.code.copy
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Tutorial – Québec City IDF: tutorial_quebec_idf.md
+  - Architecture: architecture.md
+  - Landscape: landscape.md
+  - Validation vs IDFCurves.jl: validation.md
+  - API reference:
+      - Core: api/core.md
+      - IDF: api/idf.md
+      - xarray, records, datasets, Bayes: api/extras.md
+  - Credits: credits.md
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: numpy
+            show_source: false
+            show_root_heading: true
+            heading_level: 3
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.arithmatex:
+      generic: true
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

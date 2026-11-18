@@ -1,0 +1,56 @@
+tails
+Copyright (c) 2026 Charles-Auguste Marois and rare-labs contributors
+Licensed under the MIT License (see LICENSE).
+
+-------------------------------------------------------------------------------
+Third-party work
+-------------------------------------------------------------------------------
+
+The `tails.idf` module is a Python port of the methodology of IDFCurves.jl
+(https://github.com/JuliaExtremes/IDFCurves.jl, commit 66a34d1, v0.2.0),
+licensed under the MIT License:
+
+  Copyright (c) 2023 Jonathan Jalbert, Paul Mathivon, Auguste Paoli
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+
+Ported components: simple and general (d-GEV) scaling models, Gaussian /
+Student-t / independence copulas with exponential and Matérn correlation
+structures on log-durations, automatic initialisation, Wald (delta-method)
+quantile intervals, Godambe/sandwich information, and the scaling-model
+goodness-of-fit test. Please cite the original authors:
+
+  Jalbert, J., Farmer, M., Gobeil, G., & Roy, P. (2024). Extremes.jl: Extreme
+  Value Analysis in Julia. Journal of Statistical Software, 109(6), 1-35.
+  https://doi.org/10.18637/jss.v109.i06
+
+  Mathivon, P., Genest, C., & Jalbert, J. (2024+). Joint modeling of annual
+  precipitation maxima over several durations for the construction of
+  intensity-duration-frequency curves.
+
+  Paoli, A., Carreau, J., & Jalbert, J. (2024+). Statistical testing of
+  scaling models for precipitation Intensity-Duration-Frequency curves.
+  https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4838410
+
+The bundled datasets `702S006.csv`, `6158731.csv` and `1108446.csv` are taken
+from IDFCurves.jl (MIT), which retrieved them from Environment and Climate
+Change Canada. The Québec station files under `tails/datasets/data/eccc_*`
+are extracted from the ECCC Engineering Climate Datasets, IDF v3.40
+(2025-12-05), https://collaboration.cmc.ec.gc.ca/cmc/climate/Engineer_Climate/IDF/
+and are subject to the Open Government Licence – Canada.

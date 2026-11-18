@@ -1,0 +1,9 @@
+{
+  "source": "https://collaboration.cmc.ec.gc.ca/cmc/climate/Engineer_Climate/IDF/idf_v3-40_2025-12-5.zip",
+  "member": "idf_v3-40_2025-12-5/IDF_Files_Fichiers/QC.zip",
+  "member_sha256": "f98e62878a43a68375ef00512de2492671aa006f0307681991f1c7104bc5e57f",
+  "retrieved": "2026-11-17",
+  "files": "QC/*.txt (151 stations), Table 1 annual maximum rainfall depths (mm)",
+  "licence": "Open Government Licence - Canada",
+  "parser": "tails.datasets.parse_eccc_idf"
+}

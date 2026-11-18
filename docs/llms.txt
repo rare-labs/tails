@@ -1,0 +1,38 @@
+# tails
+
+> Fast, batched extreme-value analysis in Python (GEV, GPD, POT, IDF curves).
+> Import: `import tails`. PyPI name: `rare-tails`.
+
+The library fits extreme-value models to one series or to thousands in a
+single call, with profile-likelihood and bootstrap return-level intervals,
+non-stationary linear predictors, and a duration-dependent IDF module.
+Bundled data: Environment and Climate Change Canada IDF v3.40, all 151
+Québec stations.
+
+## Install
+
+pip install rare-tails
+
+Until the first release: pip install "rare-tails @ git+https://github.com/rare-labs/tails"
+
+## Docs
+
+- [Home / Q&A](https://rare-labs.github.io/tails/): what it is, “how rare was this storm?”, fitting 1,000 stations, which distribution
+- [Quickstart](https://rare-labs.github.io/tails/quickstart/): copy-pasteable recipes
+- [Québec City IDF tutorial](https://rare-labs.github.io/tails/tutorial_quebec_idf/)
+- [Landscape](https://rare-labs.github.io/tails/landscape/): comparison with other packages
+- [Validation](https://rare-labs.github.io/tails/validation/): tails.idf vs IDFCurves.jl
+- [API: core](https://rare-labs.github.io/tails/api/core/)
+- [API: IDF](https://rare-labs.github.io/tails/api/idf/)
+- [Full text for agents](https://rare-labs.github.io/tails/llms-full.txt)
+- [Repository](https://github.com/rare-labs/tails)
+- [AGENTS.md](https://github.com/rare-labs/tails/blob/main/AGENTS.md)
+
+## One-liner
+
+import tails
+from tails.datasets import load_eccc_quebec
+y = load_eccc_quebec(); y = y.loc[y.station_id == "701S001", "24h"].to_numpy()
+fit = tails.fit_gev(y)
+fit.return_level([20, 100], ci="profile")
+# 20-year 24-h level 84.9 mm; 100-year 102.1 mm (95% profile CI 90.5–131.1)
