@@ -20,7 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ML, PWM and GMLE. Method of moments, maximum spacing and a constrained
   Gumbel are not on this backend. A GPD level is a quantile of the fitted
   sample (optional scalar `threshold`), not a peaks-over-threshold annual level.
-
+- `tails.fit_block_maxima` and `tails.fit_peaks` turn one datetime series into
+  block maxima or declustered peaks, fit them, and return a return-level table
+  from `summary()`. `model="aic"` compares the GEV with the Gumbel model
+  (shape ξ fixed at 0), or the GPD with the exponential model, and keeps the
+  smaller AIC. `fit_gev(..., fixed_shape=0)` and `fit_pot(..., fixed_shape=0)`
+  are the underlying fits; profile intervals keep that shape fixed.
 - Persistent JAX compilation cache, on by default, in `$TAILS_CACHE/jax` (default
   `~/.cache/tails/jax`). A new Python session reuses kernels compiled by the previous one, so a
   first GEV fit with a profile interval takes under 2 s instead of about 5 s.

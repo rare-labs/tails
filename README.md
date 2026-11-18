@@ -58,11 +58,13 @@ has a return period of about 138 years.
   100-year return-level interval. tails uses the same models (note: scipy’s
   GEV shape `c` has the *opposite* sign of the usual ξ), plus profile and
   bootstrap intervals, and can fit thousands of series in one call.
-- **pyextremes** is the friendliest univariate EVA package in Python today: it
-  pulls block maxima or peaks-over-threshold out of a pandas time series and
-  draws diagnostic plots. Use it for a single site when you want that
-  workflow. It does not document covariate models, it does not batch thousands
-  of series, and it has no IDF module.
+- **pyextremes** is a friendly univariate package, and its diagnostic figures
+  for one site are worth using when that is the whole job. tails covers the
+  extract-and-summarise steps for one datetime series as well
+  (`fit_block_maxima`, `fit_peaks`, with an optional AIC choice between the
+  GEV and the Gumbel model, shape ξ fixed at 0) and then the parts that go
+  further: covariates, thousands of series in one call, profile-likelihood
+  intervals, and IDF curves.
 - **xclim** is where a lot of Canadian climate work already lives. After
   `import tails.xclim`, the same `frequency_analysis` call takes
   `backend="tails"` and `ci="profile"` (also `"delta"` or `"bootstrap"`).

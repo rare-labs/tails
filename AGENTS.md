@@ -28,6 +28,7 @@ Source: https://github.com/rare-labs/tails
 | Bundled data | `from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf` |
 | ECCC / GeoMet | `from tails.datasets import eccc_daily, eccc_hourly` — `eccc_daily("701S001", 2020)` |
 | How rare is this? | `tails.how_rare(series, value_or_date, ci="profile", unit="mm")` |
+| Datetime series → extremes and a return-level table | `tails.fit_block_maxima(series)` / `tails.fit_peaks(series, threshold=...)`, then `result.summary()`. `model="aic"` compares GEV with Gumbel (ξ = 0), or GPD with the exponential |
 | Plots | `fit.plot_diagnostics()`, `fit.return_level(...).plot()`, `IDFFit.plot()` (`rare-tails[plots]`) |
 | xarray | `import tails.xarray as tx; tx.fit_gev(da, dim="time")` |
 | xclim frequency analysis | `import tails.xclim`, then `frequency_analysis(da, "max", [20, 100], "genextreme", backend="tails", ci="profile")` from `xclim.compute.stats` (xclim ≥ 1) or `xclim.indices.stats` (xclim 0.x). The returned `c` is scipy's: `c = -ξ` for genextreme, `c = ξ` for genpareto |
@@ -35,7 +36,8 @@ Source: https://github.com/rare-labs/tails
 | Record indicators | `tails.records.record_indicators`, `record_test` |
 
 Submodules `idf`, `xarray`, `xclim`, `bayes`, `datasets` are imported lazily. `import tails`
-is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare`.
+is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare` / `fit_block_maxima`
+/ `fit_peaks`.
 
 ## Common tasks
 
@@ -56,6 +58,9 @@ of estimates and standard errors.
 64 years, 1961–2024): `fit_gev` gives loc ≈ 51.66 mm, scale ≈ 11.62 mm,
 ξ ≈ −0.026. The 2005 total of 105.4 mm has a return period of about 138
 years (`tails.how_rare` reports a 1-in-138-year event, 95% profile CI 30–1212 years). The 100-year level is 102.1 mm (95% profile CI 90.5–131.1 mm).
+`fit_block_maxima` on the same series with `model="aic"` selects the Gumbel
+model (ξ fixed at 0; AIC 517.9 against 519.8). That 100-year level is 104.7 mm
+(95% profile CI 94.9–117.6 mm). `model="gev"` keeps the three-parameter fit.
 
 **IDF, same station:** `scaling_test(data, "simple")` ≈ 0.0079 (reject);
 `scaling_test(data, "general")` ≈ 0.78 (ok). `fit_idf(data, "general", "matern")`
@@ -78,6 +83,11 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
 - **Batch axis.** The last axis is the record. Everything before it is a
   batch. Pad short series with `np.nan`; do not drop them from a stacked
   array by shortening the time axis.
+- **One datetime series at a time.** `fit_block_maxima` and `fit_peaks` are the
+  convenience path. A batch is still `block_maxima` or `decluster_runs`, then
+  `fit_gev` / `fit_pot`. A shape standard error of 0 means ξ was fixed, not
+  that it was estimated with no error. `model="aic"` can select that Gumbel
+  (or exponential) model when the free shape is close to 0.
 - **Short records.** A batch will happily fit 11-year series. Cap Tourmente
   (`7041177`) is an example: ξ ≈ 1.24 and a nominal 100-year 24-hour level
   that you must not quote. Filter on `nobs` and ξ.

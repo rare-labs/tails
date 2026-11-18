@@ -84,6 +84,10 @@ and source. Timings mentioned here were measured on one 8-vCPU VM.
   L-moment starting values with feasibility fall-backs, Martins–Stedinger GMLE.
 - **One engine, many subjects**: the same masked, batched machinery serves block maxima, POT with
   time-varying thresholds, IDF copula models, and record statistics; it is the base for planned multivariate, spatial, attribution and ML-assisted work.
+- **A short path from a timestamped series.** `fit_block_maxima` and `fit_peaks` turn one datetime
+  series into block maxima or declustered peaks, optionally choose the GEV against the Gumbel model
+  (or the GPD against the exponential) by AIC, and return a return-level table. Shape is ξ. A batch
+  of stations is still `fit_gev` / `fit_pot`.
 - **Labelled data**: an xarray/Dask front-end so a gridded dataset is one call, chunk-parallel.
   `import tails.xclim` adds `backend="tails"` to xclim's `frequency_analysis`
   (`xclim.compute.stats` on xclim 1.0, `xclim.indices.stats` on xclim 0.x),

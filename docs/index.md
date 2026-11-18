@@ -12,9 +12,12 @@ the first release is on PyPI, use
 
 Use tails when you already have block maxima, threshold exceedances, or IDF
 tables and you want a fitted model with honest uncertainty — especially if you
-have many stations or grid cells. If you have a single pandas time series and
-you mainly want diagnostic plots, [pyextremes](https://georgebv.github.io/pyextremes/)
-may be a better first stop. If you already work in [xclim](https://xclim.readthedocs.io/),
+have many stations or grid cells. A single datetime series can start one step
+earlier: `fit_block_maxima` or `fit_peaks` extracts the sample and
+`summary()` is the return-level table. If you mainly want a single-site
+diagnostic figure in the style of
+[pyextremes](https://georgebv.github.io/pyextremes/), that package is still
+the one built around those plots. If you already work in [xclim](https://xclim.readthedocs.io/),
 `import tails.xclim` and keep calling `frequency_analysis` with
 `backend="tails"` and, when you want an interval, `ci="profile"`. On xclim
 1.0 the import is `xclim.compute.stats`; on xclim 0.x it is

@@ -1,6 +1,6 @@
 # How-to
 
-Short answers to three common questions. The numbers below were produced by
+Short answers to common questions. The numbers below were produced by
 running the snippets; they are not typed in.
 
 ## How do I plot diagnostics and IDF curves?
@@ -43,6 +43,72 @@ At Québec City the 100-year 1-hour intensity on this fit is 43.6 mm/h. The
 empirical 100-year point at 1 h is 59.9 mm/h — the 1979 storm, which sits
 above the pooled curve. `ci` can be `"hessian"`, `"sandwich"`, `"bootstrap"`,
 or `None` for the curves alone.
+
+## How do I start from a datetime series?
+
+`fit_block_maxima` takes one series with timestamps, keeps the maximum of each
+block, and fits it. `fit_peaks` keeps peaks over a threshold, with optional
+runs declustering. Either result has `summary()`, a table of return levels,
+and `parameters()`, the fitted location, scale and shape. The shape is ξ.
+
+`model="aic"` fits the full model and the nested model with ξ fixed at 0
+(Gumbel for block maxima, exponential for peaks) and keeps the smaller AIC.
+A tie keeps the simpler model. `model="gev"` or `"gpd"` skips that comparison.
+
+The series below is the Québec City 24-hour record from the quickstart, with
+one timestamp per annual maximum. A daily series is the same call:
+`freq="YS"` takes one maximum per year. Set `min_count` when a short block
+should not count (300 is a typical rule for daily data).
+
+```python
+import pandas as pd
+import tails
+from tails.datasets import load_eccc_quebec
+
+df = load_eccc_quebec()
+sub = df.loc[df.station_id == "701S001", ["year", "24h"]].dropna()
+series = pd.Series(
+    sub["24h"].to_numpy(),
+    index=pd.to_datetime(sub["year"].astype(str), format="%Y"),
+    name="701S001",
+)
+ext = tails.fit_block_maxima(series, model="aic")
+print(ext)
+print(ext.summary(periods=[20, 100]).to_string(index=False))
+```
+
+```
+SeriesExtremes(kind='blocks', model='gumbel', n=64, loc=51.5, scale=11.56, ξ=0 fixed, AIC gev=519.82, gumbel=517.93)
+
+ period   estimate     lower      upper
+   20.0  85.829137 78.908678  94.825236
+  100.0 104.669085 94.880203 117.595400
+```
+
+On these 64 years the free GEV shape is about −0.026, and AIC prefers the
+Gumbel model (517.9 against 519.8). The 100-year level is 104.7 mm, with a
+95% profile interval of 94.9–117.6 mm. That interval is narrower than the
+three-parameter profile interval in the quickstart (90.5–131.1 mm around
+102.1 mm) because ξ is held at 0, not because the record got longer. Pass
+`model="gev"` to keep the three-parameter fit; the table then matches the
+quickstart. A standard error of 0 on ξ means the shape was fixed.
+
+`ext.extremes` is the block-maxima series. `ext.fit` is the `GEVFit`, so
+`plot_diagnostics()` and `return_level()` are unchanged.
+
+Peaks use the same object. `npy`, the number of observations per year, is
+inferred from the spacing of the index when you do not pass it (about 365.25
+for daily data, about 1 if the series is already annual). `run_length` is a
+number of observations, as in `decluster_runs`, or an offset such as `"24h"`.
+`daily` here is a pandas Series with a DatetimeIndex.
+
+```python
+peaks = tails.fit_peaks(daily, threshold=20.0, run_length="24h", model="aic")
+peaks.summary()   # delta-method intervals
+```
+
+`POTFit.return_level` supports `ci="delta"` only, so `summary()` on a peaks
+result uses that.
 
 ## How rare was this storm?
 

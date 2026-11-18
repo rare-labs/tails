@@ -31,6 +31,12 @@ the printed fit is `loc=51.66±1.6`, `log_scale=2.453±0.097`,
 `shape=-0.02595±0.078`, and the 20- and 100-year 24-hour levels are 84.9 mm
 and 102.1 mm (95% profile intervals 77.8–98.0 mm and 90.5–131.1 mm).
 
+If those annual maxima are still a series with timestamps,
+`tails.fit_block_maxima(series)` does the blocking and `summary()` is the
+return-level table. `model="aic"` compares this GEV with a Gumbel model
+(ξ fixed at 0). On this station the Gumbel model wins by AIC; the how-to
+shows that table. `model="gev"` keeps the fit above.
+
 ## How do I fit thousands of series in one call?
 
 The last axis is time; every axis before that is a batch. This stacks all 151
