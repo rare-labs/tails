@@ -52,6 +52,144 @@ def _stationary_params(fit, index: int = 0) -> dict[str, float]:
     return out
 
 
+def _default_covariate_name(name: str) -> bool:
+    return len(name) > 1 and name[0] == "x" and name[1:].isdigit()
+
+
+def _covariate_axis_label(names: list[str]) -> str:
+    """Axis title from covariate names. Unnamed columns (``x0``, ``x1``, …) are not shown."""
+    pretty: list[str] = []
+    for name in names:
+        if _default_covariate_name(name) or name in {"", "None"}:
+            continue
+        if name not in pretty:
+            pretty.append(name)
+    if len(pretty) == 1:
+        return pretty[0]
+    return "Covariate"
+
+
+def _covariate_axis(fit, index: int) -> tuple[np.ndarray, str]:
+    """Horizontal axis for one series, in observation order.
+
+    One covariate column — including the same column on more than one
+    parameter — is drawn on that column's scale. A year, a temperature
+    index, or any other series the user passed in is treated the same way.
+    Several distinct columns stay in observation order: the curve is the
+    fitted level at each row.
+    """
+    B = int(np.prod(fit.batch_shape, dtype=int))
+    columns: list[np.ndarray] = []
+    names: list[str] = []
+    n_obs = None
+    for design, raw in zip(fit._designs, fit._raw):
+        if int(design.X.shape[-1]) <= 1:
+            continue
+        raw = np.asarray(raw, float)
+        if raw.ndim == 2:
+            cols = raw[:, 1:]
+        else:
+            cols = raw.reshape(B, -1, raw.shape[-1])[index, :, 1:]
+        if n_obs is None:
+            n_obs = int(cols.shape[0])
+        labels = [nm.split(":", 1)[1] if ":" in nm else nm for nm in design.names[1:]]
+        if len(labels) != cols.shape[1]:
+            labels = [f"x{j}" for j in range(cols.shape[1])]
+        for j in range(cols.shape[1]):
+            columns.append(np.asarray(cols[:, j], float))
+            names.append(labels[j])
+    if not columns or n_obs is None:
+        raise ValueError("plot_diagnostics found no covariate on this non-stationary fit")
+    same = all(np.allclose(columns[0], col) for col in columns[1:])
+    if same and np.unique(columns[0]).size >= 2:
+        return columns[0], _covariate_axis_label(names)
+    return np.arange(n_obs, dtype=float), "Observation"
+
+
+def _trend_curve(rl, index: int):
+    """Return level and bounds for one series, shape ``(n,)`` each."""
+    est = np.asarray(rl.estimate, float)
+    if est.ndim < 2:
+        raise ValueError("a non-stationary return level has shape (*batch, n, period)")
+    curve = est.reshape(-1, est.shape[-2], est.shape[-1])
+    if index < 0 or index >= curve.shape[0]:
+        raise IndexError(f"index {index} is outside the batch of {curve.shape[0]} series")
+    est_i = curve[index, :, 0]
+    lo = hi = None
+    if rl.lower is not None:
+        lo = np.asarray(rl.lower, float).reshape(curve.shape)[index, :, 0]
+        hi = np.asarray(rl.upper, float).reshape(curve.shape)[index, :, 0]
+    return est_i, lo, hi
+
+
+def plot_trend_diagnostics(
+    fit,
+    index: int = 0,
+    *,
+    ci: str | None = "delta",
+    period: float = 2.0,
+    alpha: float = 0.05,
+    n_boot: int = 500,
+    seed: int = 0,
+    profile_points: int = 41,
+    figsize=(7.2, 4.4),
+    fig=None,
+):
+    """Observations, fitted return level, and an interval along the covariate.
+
+    The curve is the ``period``-year level at each fitted row. The default
+    period is 2, the median of the GEV. ``ci`` is ``"delta"``, ``"profile"``,
+    ``"bootstrap"`` or ``None``, the same intervals as
+    :meth:`~tails.core.fit.GEVFit.return_level`. The horizontal axis is the
+    covariate passed to ``fit_gev``. A pandas column name is used when the
+    fit has one; an unnamed array is labelled ``Covariate``.
+    """
+    plt = require_matplotlib()
+    period = float(period)
+    y = _series_y(fit, index)
+    x, xlabel = _covariate_axis(fit, index)
+    if x.shape[0] != y.shape[0]:
+        raise ValueError(f"covariate length {x.shape[0]} does not match the series length {y.shape[0]}")
+    rl = fit.return_level(
+        [period],
+        ci=ci,
+        alpha=alpha,
+        n_boot=n_boot,
+        seed=seed,
+        profile_points=profile_points,
+    )
+    est, lo, hi = _trend_curve(rl, index)
+    if fig is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        ax = fig.axes[0] if fig.axes else fig.add_subplot(111)
+
+    order = np.argsort(x, kind="mergesort")
+    xs = x[order]
+    ax.plot(xs, est[order], color=color(0), lw=1.6, zorder=3, label=f"Fitted {period:g}-year level")
+    if lo is not None:
+        band = "95% CI" if rl.alpha == 0.05 else f"{100 * (1.0 - rl.alpha):.0f}% CI"
+        ax.fill_between(xs, lo[order], hi[order], color=color(0), alpha=0.22, linewidth=0, zorder=2, label=band)
+    finite = np.isfinite(y)
+    ax.scatter(
+        x[finite],
+        y[finite],
+        s=22,
+        color="0.15",
+        zorder=4,
+        edgecolors="white",
+        linewidths=0.4,
+        label="Observed",
+    )
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel("Block maximum")
+    ax.set_title("Fitted trend")
+    ax.legend(frameon=False, fontsize=8)
+    apply_axes_style(ax)
+    fig.tight_layout()
+    return fig, ax
+
+
 def empirical_return_levels(y, periods, method: str = "weibull") -> np.ndarray:
     """Empirical T-year levels from a single sample via plotting positions."""
     x = np.sort(np.asarray(y, float)[np.isfinite(y)])
@@ -77,17 +215,47 @@ def plot_fit_diagnostics(
     periods=None,
     n_band: int = 200,
     seed: int = 0,
-    figsize=(8.2, 7.4),
+    figsize=None,
     fig=None,
+    period: float = 2.0,
+    alpha: float = 0.05,
+    n_boot: int = 500,
+    profile_points: int = 41,
 ):
-    """2×2 diagnostic figure for one series of a fitted GEV, GPD or POT model.
+    """Diagnostic figure for one series of a fitted GEV, GPD or POT model.
 
-    Panels: QQ and PP plots with a simulated pointwise 95% envelope, a
-    return-level plot with a CI ribbon, and a histogram plus fitted density.
+    A stationary fit draws a 2×2 figure: QQ and PP plots with a simulated
+    pointwise 95% envelope, a return-level plot with a CI ribbon, and a
+    histogram plus the fitted density.
+
+    A non-stationary GEV draws the observations, the fitted return level
+    along the covariate, and a confidence ribbon. ``period`` (default 2,
+    the median) selects that level. ``ci`` is ``"delta"``, ``"profile"``,
+    ``"bootstrap"`` or ``None``.
     """
     plt = require_matplotlib()
     if not fit.stationary:
-        raise ValueError("plot_diagnostics currently supports stationary models")
+        if fit.family != "gev":
+            raise ValueError(
+                "plot_diagnostics supports stationary models; "
+                "trend diagnostics are implemented for a non-stationary GEV"
+            )
+        if figsize is None:
+            figsize = (7.2, 4.4)
+        return plot_trend_diagnostics(
+            fit,
+            index=index,
+            ci=ci,
+            period=period,
+            alpha=alpha,
+            n_boot=n_boot,
+            seed=seed,
+            profile_points=profile_points,
+            figsize=figsize,
+            fig=fig,
+        )
+    if figsize is None:
+        figsize = (8.2, 7.4)
     y = _series_y(fit, index)
     x = y[np.isfinite(y)]
     if x.size < 2:

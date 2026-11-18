@@ -95,9 +95,13 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
   fixed for delta and profile intervals, including POT return levels and
   non-stationary GEV profiles. Bootstrap refits a free ξ, so `ci="bootstrap"`
   is rejected; use `"delta"` or `"profile"`.
-- **Plots.** `fit.plot_diagnostics()` (GEV/GPD/POT, stationary) and
-  `IDFFit.plot()` (curves + CI ribbons + empirical return-period points)
-  require `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
+- **Plots.** `fit.plot_diagnostics()` for a stationary GEV, GPD or POT (QQ, PP,
+  return level, density). A non-stationary GEV draws the observations, the
+  fitted return level along the covariate, and a delta or profile ribbon.
+  The x-axis is the covariate passed to `fit_gev` (a year, a temperature
+  index, or anything else). `IDFFit.plot()`
+  (curves + CI ribbons + empirical return-period points) requires
+  `pip install 'rare-tails[plots]'`. There is no `GEVFit.plot()`;
   use `plot_diagnostics()` or `ReturnLevels.plot()`.
 - **Covariates** are centred and scaled internally; reported coefficients
   are on the user’s scale. Shape covariates are usually a bad idea unless
