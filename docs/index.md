@@ -55,7 +55,8 @@ The same way as one series: pass an array whose last axis is time. The
 stacks all 151 bundled Québec stations with a pivot table; every fit
 converges, and Québec City’s 100-year level matches the single-station fit.
 Look at record length and the shape parameter before you quote a number from
-a short series.
+a short series. The [how-to](howto.md#how-do-i-map-a-batch-of-return-levels)
+maps that batch at each station's latitude and longitude.
 
 ## Which distribution should I use?
 

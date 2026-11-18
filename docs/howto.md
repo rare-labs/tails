@@ -44,6 +44,65 @@ empirical 100-year point at 1 h is 59.9 mm/h — the 1979 storm, which sits
 above the pooled curve. `ci` can be `"hessian"`, `"sandwich"`, `"bootstrap"`,
 or `None` for the curves alone.
 
+## How do I map a batch of return levels?
+
+`tails.plot_return_level_map` draws one return level at each location.
+Longitude and latitude come from the data, in degrees. Stations are a
+scatter; a latitude × longitude grid is a mesh. The colour is the level in
+the units of the fit. Pass `label` to name those units.
+`ReturnLevels.plot_map(lon, lat, period=100)` is the same plot. This needs
+the `plots` extra, as above.
+
+The batch below is the quickstart's 151 Québec stations, 24-hour annual
+maxima in millimetres. A station with fewer than 20 years, or with a shape
+estimate outside (−0.5, 0.5), is set to NaN and left off the map. That
+removes Cap Tourmente (`7041177`, 11 years, ξ ≈ 1.24) and 52 other series.
+The 98 that remain run from 63.0 mm at Inukjuak to 247.9 mm at Charlevoix
+(MRC). The median is 101.8 mm. Québec City (Jean Lesage, `701S001`) is
+102.1 mm, the same 100-year level as the single-station fit. The colour
+scale is the 5th to 95th percentile of those 98 levels, 73.6–158.6 mm, so
+the Charlevoix value does not flatten the rest.
+
+```python
+import numpy as np
+import tails
+from tails.datasets import load_eccc_quebec
+
+df = load_eccc_quebec()
+wide = df.pivot_table(index="station_id", columns="year", values="24h")
+meta = df.drop_duplicates("station_id").set_index("station_id").loc[wide.index]
+fit = tails.fit_gev(wide.to_numpy())
+level = np.asarray(fit.return_level([100]).estimate)[:, 0].copy()
+keep = (fit.nobs >= 20) & (np.abs(fit.params["shape"]) < 0.5)
+level[~keep] = np.nan
+shown = level[np.isfinite(level)]
+vmin, vmax = np.quantile(shown, [0.05, 0.95])
+ax = tails.plot_return_level_map(
+    level,
+    meta.lon.to_numpy(),
+    meta.lat.to_numpy(),
+    period=100,
+    vmin=vmin,
+    vmax=vmax,
+    label="100-year 24-h level (mm)",
+    title="Québec ECCC stations",
+)
+```
+
+![100-year 24-hour levels at Québec stations](img/quebec_stations_rl100_24h.png)
+
+An xarray result uses the coordinates it already carries (`lat`/`lon` or
+`latitude`/`longitude`). Pass `period` when the array holds more than one
+return period. A Dataset from xclim's `frequency_analysis(..., ci=...)` is
+the same call: the function reads its `return_level` variable.
+
+```python
+import tails.xarray as tx
+
+ds = tx.fit_gev(annual_max, dim="year")   # lat, lon, and the year of the maxima
+tails.plot_return_level_map(tx.return_level(ds, [20, 100]), period=100)
+```
+
 ## How do I start from a datetime series?
 
 `fit_block_maxima` takes one series with timestamps, keeps the maximum of each

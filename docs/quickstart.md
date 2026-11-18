@@ -51,7 +51,8 @@ fits.return_level([100], ci="delta").estimate     # (151, 1)
 Missing years are NaN and are simply masked. All 151 of those fits converge.
 Québec City’s 100-year level in the batch matches the single-station fit
 (102.06 mm). Short records can still extrapolate badly: look at `nobs` and ξ
-before you quote a number.
+before you quote a number. The [how-to](howto.md#how-do-i-map-a-batch-of-return-levels)
+draws these levels at each station's latitude and longitude.
 
 ## How do I add a trend or a covariate?
 

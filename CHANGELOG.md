@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `tails.plot_return_level_map(levels, lon, lat)` draws one return level from
+  a batch fit at longitude and latitude. Stations are a scatter; a latitude
+  by longitude grid is a mesh. Coordinates come from the arguments or from
+  an xarray `lat`/`lon` (or `latitude`/`longitude`) coordinate. The colour
+  is the return level in the units of the fit. `ReturnLevels.plot_map` is
+  the same plot. Requires the `plots` extra.
+
 ## [0.1.0] — 2026-11-18
 
 First public release. The import is `import tails`; the distribution name on PyPI is `rare-tails`

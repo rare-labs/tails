@@ -64,6 +64,15 @@ from tails.idf import IDFData, fit_idf, scaling_test
                                                  # empirical T-year points in mm/h vs hours
   fit.plot_diagnostics(ci="profile")             # QQ/PP with bands, RL ribbon, density
   rl.plot()                                      # ReturnLevels ribbon
+  tails.plot_return_level_map(levels, lon, lat, period=100)
+    One return level per location. Stations: scatter. A (lat, lon) grid: mesh.
+    lon/lat are degrees from the data (or lat/lon, latitude/longitude on an
+    xarray DataArray; a Dataset uses its return_level variable). Colour is the
+    level in the units of the fit — label= names them, or a DataArray units
+    attribute. Default colour bar is "Return level". period= is required when
+    more than one period is present (period or return_period). NaNs are omitted.
+    ReturnLevels.plot_map(lon, lat, period=100) is the same function.
+    Axes are degrees, aspect 1/cos(mean latitude), with no tile layer.
 
 from tails.datasets import load_eccc_quebec, load_idfcurves, parse_eccc_idf, eccc_daily, eccc_hourly
   eccc_daily("701S001", 2020) / eccc_hourly(station, (2019, 2020))
@@ -152,6 +161,6 @@ single-station fit (102.0568 mm). Cap Tourmente 7041177 has nobs=11 and
 - First JAX call compiles (seconds); later calls are fast. Compiled kernels are cached on disk
   ($TAILS_CACHE/jax, default ~/.cache/tails/jax), so new sessions start warm. TAILS_JAX_CACHE=0 turns it off.
 - Last axis is the record; preceding axes are the batch.
-- Plot APIs: fit.plot_diagnostics() on GEVFit/GPDFit/POTFit; ReturnLevels.plot(); IDFFit.plot(). No GEVFit.plot().
+- Plot APIs: fit.plot_diagnostics() on GEVFit/GPDFit/POTFit; ReturnLevels.plot(); IDFFit.plot(); tails.plot_return_level_map(levels, lon, lat) / ReturnLevels.plot_map. No GEVFit.plot(). The map takes coordinates from the data and does not assume a unit.
 - Do not put IDFCurves.jl author names in new public text; see NOTICE.
 - Do not add a public planning document or a benchmark suite to this repository.
