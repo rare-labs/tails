@@ -99,6 +99,9 @@ fit = tails.fit_gev(y)  # y = the 24h column
 129.1 years. 20- and 100-year 1-hour levels 39.67 and 56.75 mm (profile CIs
 wide: 100-year 44.2–99.5 mm).
 
+Québec IDF tutorial notebook: docs/notebooks/tutorial_quebec_idf.ipynb
+Open in Colab: https://colab.research.google.com/github/rare-labs/tails/blob/main/docs/notebooks/tutorial_quebec_idf.ipynb
+
 IDF on the same station, general scaling + Matérn Gaussian copula:
 params (mu0, sigma0, xi, alpha, delta, nu, rho) ≈
 (19.886, 5.706, -0.04467, 0.7143, 0.04461, 0.9168, 2.431)
