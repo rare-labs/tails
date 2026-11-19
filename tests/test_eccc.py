@@ -74,3 +74,28 @@ def test_eccc_hourly_live_short_window(tmp_path, monkeypatch):
     assert df.index.min().year == 2010
     # Cache file written.
     assert any(tmp_path.glob("climate-hourly-7016294-2010-2010-*.csv.gz"))
+
+
+def test_paginate_reads_total_from_first_page(monkeypatch):
+    """GeoMet reports numberMatched = offset + returned on later pages."""
+    from tails.datasets import eccc
+
+    pages = {
+        "u?a=1": {"numberMatched": 25, "features": [{"id": i} for i in range(10)],
+                  "links": [{"rel": "next", "href": "u2"}]},
+        "u2": {"numberMatched": 20, "features": [{"id": i} for i in range(10, 20)],
+               "links": [{"rel": "next", "href": "u3"}]},
+        "u3": {"numberMatched": 25, "features": [{"id": i} for i in range(20, 25)],
+               "links": [{"rel": "next", "href": "u4"}]},
+        "u4": {"numberMatched": 25, "features": [], "links": []},
+    }
+    calls = []
+
+    def fake(url, timeout):
+        calls.append(url)
+        return pages[url]
+
+    monkeypatch.setattr(eccc, "_get_json", fake)
+    out = eccc._paginate("u", {"a": 1}, timeout=1)
+    assert [f["id"] for f in out] == list(range(25))
+    assert calls == ["u?a=1", "u2", "u3"]
