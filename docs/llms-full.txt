@@ -25,20 +25,45 @@ pip install rare-tails
 
 ## API
 
-tails.fit_gev(data, loc=None, scale=None, shape=None, mask=None, method="mle")
+Two model families; the rest are options:
+  GEV family: block maxima are the r=1 case of the r-largest likelihood.
+  GPD family: fit_gpd fits excesses; fit_pot adds the exceedance rate.
+  Covariates on any parameter, fixed_shape, priors and every ci option work
+  the same way in both, stationary or not (one engine: tails.core._engine).
+
+tails.fit_gev(data, loc=None, scale=None, shape=None, mask=None, method="mle",
+              fixed_shape=None, r=None)
   data: shape (*batch, n). NaN = missing. method: "mle" | "gmle" | "lmom".
-  Returns GEVFit.
+  r=k: data is (*batch, n_blocks, r_max), the largest values of each block;
+  fits the same GEV with the k largest values per block. Returns GEVFit.
   fit.params is a dict with natural parameters loc, scale, shape (arrays).
   fit.return_level(periods, ci="profile"|"delta"|"bootstrap", alpha=0.05)
-  Profile and bootstrap apply to stationary GEV and to GEV with covariates
+  covariates={"loc": rows, ...} or a DataFrame with the fitted covariate
+  columns gives levels at new covariate values, shape (*batch, m, len(periods)).
+  Profile and bootstrap work for every model, with or without covariates
   (the profile replaces the location intercept at each covariate row).
   fit.coef, fit.se, fit.summary(), fit.converged, fit.nobs, fit.loglik.
+  fit.confint(alpha=0.05, method="profile"|"wald") -> DataFrame per coefficient.
+  fit.params_at(covariates) -> natural parameters at covariate rows.
 
-tails.fit_gpd(data, threshold=None, ...)
-tails.fit_pot(data, threshold, npy=365.25, ...)
-  POT return_level ci is "delta", "profile" or "bootstrap" (stationary).
-  Profile is the joint excess + exceedance-rate likelihood. fixed_shape
-  stays fixed for delta and profile; bootstrap needs a free shape.
+tails.fit_gpd(data, threshold=None, scale=None, shape=None, ...)
+  return_level(T) without a rate: level exceeded once every T exceedances.
+tails.fit_pot(data, threshold, npy=365.25, decluster=None, scale=None,
+              shape=None, rate=None, fixed_shape=None, ...)
+  Covariates have one row per observation; rate uses a logit link on
+  zeta = P(X > u). POT return_level ci is "delta", "profile" or "bootstrap",
+  stationary or not. kind="interval" (default, exceeded once every T years on
+  average) or kind="block" (the block maximum, e.g. annual or seasonal with
+  npy observations per block, exceeds it with probability 1/T). Profile is the
+  joint excess + exceedance-rate likelihood. fixed_shape stays fixed in all
+  intervals. coef/cov/loglik/n_params are the GPD part; rate_coef, rate_cov,
+  loglik_rate, zeta, rate describe the rate.
+
+tails.block_top_r(series, r, freq="YS", min_separation=None, min_count=None)
+  DataFrame, one row per block, columns 1..r, events at least min_separation apart.
+  Feed it to fit_gev(top.to_numpy(), r=r): data (*batch, n_blocks, r_max), the
+  largest values of each block, any order, NaN-padded. r=1 equals fit_gev on
+  the maxima. Returns a GEVFit (fit.r is the number of values per block).
 
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold

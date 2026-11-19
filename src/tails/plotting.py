@@ -264,7 +264,7 @@ def plot_fit_diagnostics(
     family = fit.family
     is_pot = getattr(fit, "rate", None) is not None and family == "gpd"
     # For a GPD fit of excesses, density/QQ/PP are on the excess scale.
-    ppf, cdf, pdf = _dist_funs(family, params, fit, index, is_pot)
+    ppf, cdf, pdf = _dist_funs(family, params)
 
     if fig is None:
         fig, axes = plt.subplots(2, 2, figsize=figsize)
@@ -383,7 +383,7 @@ def _sim_envelopes(ppf, n: int, n_band: int, seed: int):
     return lo_q, hi_q, lo_p, hi_p
 
 
-def _dist_funs(family, params, fit, index, is_pot):
+def _dist_funs(family, params):
     from .core.distributions import gev_cdf, gev_logpdf, gev_ppf, gev_support, gpd_cdf, gpd_logpdf, gpd_ppf
 
     if family == "gev":

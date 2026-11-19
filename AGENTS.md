@@ -21,7 +21,11 @@ Source: https://github.com/rare-labs/tails
 | Fit GEV to block maxima | `tails.fit_gev(y)` or `tails.fit_gev(Y)` with `Y.shape == (n_series, n)` |
 | Return levels + CI | `fit.return_level([20, 100], ci="profile")` — `"delta"`, `"profile"`, `"bootstrap"` |
 | Non-stationary GEV | `tails.fit_gev(y, loc=covariate, scale=..., shape=...)` |
-| GPD / POT | `tails.fit_gpd(excesses)` / `tails.fit_pot(series, threshold=..., npy=365.25)` |
+| More than one value per year (r-largest) | `top = tails.block_top_r(daily, 5, min_separation="3D")`, then `tails.fit_gev(top.to_numpy(), r=5)`. Same GEV parameters, covariates and `ci` options as block maxima; `r=1` is block maxima |
+| GPD / POT | `tails.fit_gpd(excesses)` / `tails.fit_pot(series, threshold=..., npy=365.25)`. POT takes covariates on `scale`, `shape` and `rate` (one row per observation) |
+| Season or annual maximum from POT | `pot.return_level([50], kind="block")`: the level the block maximum exceeds with probability 1/T (default `kind="interval"`: exceeded once every T years on average) |
+| Return level at new covariate values | `fit.return_level([100], covariates={"loc": rows})` or a DataFrame with the fitted covariate columns; `fit.params_at(rows)` for the parameters |
+| Coefficient intervals | `fit.confint()` (profile likelihood) or `fit.confint(method="wald")` |
 | Threshold choice | `tails.mean_residual_life`, `tails.parameter_stability`, `tails.select_threshold`, `tails.plot_threshold(series, unit="mm")` |
 | Declustering | `tails.decluster_runs`, `tails.extremal_index`, `tails.block_maxima` |
 | IDF | `from tails.idf import IDFData, fit_idf, scaling_test` |
@@ -38,6 +42,19 @@ Source: https://github.com/rare-labs/tails
 Submodules `idf`, `xarray`, `xclim`, `bayes`, `datasets` are imported lazily. `import tails`
 is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare` / `fit_block_maxima`
 / `fit_peaks` / `plot_threshold`.
+
+## Two model families, options not models
+
+Every fit is one of two likelihoods in `tails.core._engine`:
+
+- **GEV family**: block maxima are the `r = 1` case of the r-largest
+  likelihood. `fit_gev(y)` and `fit_gev(top, r=5)` are the same model.
+- **GPD family**: `fit_gpd` fits excesses. `fit_pot` is the same GPD with an
+  exceedance-rate component (Bernoulli per observation, logit link).
+
+Covariates (any parameter), `fixed_shape`, `method="gmle"`, and
+`ci="delta" | "profile" | "bootstrap"` work the same in both families,
+stationary or not. All fit classes share `tails.core.model.ModelFit`.
 
 ## Common tasks
 
@@ -100,10 +117,13 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
 - **Short records.** A batch will happily fit 11-year series. Cap Tourmente
   (`7041177`) is an example: ξ ≈ 1.24 and a nominal 100-year 24-hour level
   that you must not quote. Filter on `nobs` and ξ.
-- **Bootstrap with a fixed shape.** `fixed_shape` (Gumbel, exponential) stays
-  fixed for delta and profile intervals, including POT return levels and
-  non-stationary GEV profiles. Bootstrap refits a free ξ, so `ci="bootstrap"`
-  is rejected; use `"delta"` or `"profile"`.
+- **Fixed shape.** `fixed_shape` (Gumbel, exponential) stays fixed for the
+  delta, profile and bootstrap intervals, and location or scale covariates
+  can be added. A shape covariate together with `fixed_shape` is an error.
+- **POT fields.** `POTFit.coef`, `cov`, `loglik` and `n_params` describe the
+  GPD of the excesses. The rate has `rate_coef`, `rate_cov` and
+  `loglik_rate`; `zeta` is P(X > u) and `rate = zeta * npy` (per observation
+  when the rate has covariates).
 - **Plots.** `fit.plot_diagnostics()` for a stationary GEV, GPD or POT (QQ, PP,
   return level, density). A non-stationary GEV draws the observations, the
   fitted return level along the covariate, and a delta or profile ribbon.

@@ -90,8 +90,8 @@ def test_exponential_pot_profile_keeps_shape_fixed(rng):
     _bracket(rl)
     manual = 10.0 + float(pot.params["scale"]) * np.log(np.array([5.0, 20.0]) * pot.npy * float(pot.zeta))
     np.testing.assert_allclose(rl.estimate, manual, rtol=1e-6)
-    with pytest.raises(ValueError, match="bootstrap"):
-        pot.return_level([5], ci="bootstrap")
+    boot = pot.return_level([5], ci="bootstrap", n_boot=40, seed=1)
+    assert boot.lower[0] < boot.estimate[0] < boot.upper[0]
 
 
 def test_nonstationary_profile_and_bootstrap(rng):
