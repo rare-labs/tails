@@ -40,6 +40,14 @@ tails.fit_pot(data, threshold, npy=365.25, ...)
   Profile is the joint excess + exceedance-rate likelihood. fixed_shape
   stays fixed for delta and profile; bootstrap needs a free shape.
 
+tails.fit_rlargest(data, r=None, max_iter=200)
+  data (*batch, n_blocks, r_max): the largest values of each block, any order,
+  NaN-padded. Fits the GEV of the block maxima to the r largest values
+  (r-largest order statistics); r=1 equals fit_gev. Returns RLargestFit (a
+  GEVFit): params, summary(), return_level(periods, ci="delta"|"profile").
+tails.block_top_r(series, r, freq="YS", min_separation=None, min_count=None)
+  DataFrame, one row per block, columns 1..r, events at least min_separation apart.
+
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold
 tails.plot_threshold(x, thresholds=None, *, unit="", alpha=0.05, n_boot=199, seed=0)

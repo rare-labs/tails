@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `tails.fit_rlargest` fits the GEV of block maxima to the `r` largest values
+  of each block (r-largest order statistics), batched over series, with NaN for
+  blocks that hold fewer values. Return levels take `ci="delta"` or
+  `ci="profile"`. `tails.block_top_r` takes the `r` largest separate events of
+  each year from a datetime series. On Montréal-Trudeau daily rain (1942–2012),
+  `r=5` narrows the 100-year interval by about a fifth compared with annual maxima.
 - `tails.plot_return_level_map(levels, lon, lat)` draws one return level from
   a batch fit at longitude and latitude. Stations are a scatter; a latitude
   by longitude grid is a mesh. Coordinates come from the arguments or from

@@ -21,6 +21,7 @@ Source: https://github.com/rare-labs/tails
 | Fit GEV to block maxima | `tails.fit_gev(y)` or `tails.fit_gev(Y)` with `Y.shape == (n_series, n)` |
 | Return levels + CI | `fit.return_level([20, 100], ci="profile")` — `"delta"`, `"profile"`, `"bootstrap"` |
 | Non-stationary GEV | `tails.fit_gev(y, loc=covariate, scale=..., shape=...)` |
+| More than one value per year (r-largest) | `top = tails.block_top_r(daily, 5, min_separation="3D")`, then `tails.fit_rlargest(top.to_numpy(), r=5)`. Same GEV parameters and `return_level(..., ci="delta" | "profile")` as `fit_gev`; `r=1` is `fit_gev` |
 | GPD / POT | `tails.fit_gpd(excesses)` / `tails.fit_pot(series, threshold=..., npy=365.25)` |
 | Threshold choice | `tails.mean_residual_life`, `tails.parameter_stability`, `tails.select_threshold`, `tails.plot_threshold(series, unit="mm")` |
 | Declustering | `tails.decluster_runs`, `tails.extremal_index`, `tails.block_maxima` |

@@ -442,6 +442,48 @@ do not pin the period of a magnitude 9.5 earthquake any tighter than that.
 This is the catalog question (how often the year's largest event is this
 large). A design ground motion at a site is a further step.
 
+## How do I use more than the annual maximum?
+
+Annual maxima keep one value per year. The second- and third-largest rain days
+of a year come from the same tail, and the r-largest model uses them: it fits
+the same GEV (`loc`, `scale`, `shape` of the annual maximum) to the `r`
+largest values of each block. `tails.block_top_r` picks those values from a
+datetime series, keeping events apart so one storm counts once, and
+`tails.fit_rlargest` fits them. `r=1` is the ordinary `fit_gev`.
+
+```python
+import tails
+from tails.datasets import eccc_daily
+
+# Montréal-Trudeau daily rainfall, 1942–2012 (ECCC climate ID 7025250).
+rain = eccc_daily("7025250", (1942, 2012))["precip"]
+
+# The five largest separate rain days of each year (at least 3 days apart).
+top = tails.block_top_r(rain, 5, min_separation="3D", min_count=330)
+
+for r in (1, 3, 5):
+    fit = tails.fit_rlargest(top.to_numpy(), r=r)
+    rl = fit.return_level([100], ci="profile")
+    print(f"r={r}: xi={float(fit.params['shape']):+.3f}  "
+          f"100-year day = {rl.estimate[0]:.1f} mm "
+          f"(95% CI {rl.lower[0]:.1f}–{rl.upper[0]:.1f})")
+```
+
+```text
+r=1: xi=+0.016  100-year day = 92.6 mm (95% CI 79.9–127.8)
+r=3: xi=+0.033  100-year day = 93.9 mm (95% CI 80.6–121.5)
+r=5: xi=+0.036  100-year day = 93.9 mm (95% CI 80.8–118.7)
+```
+
+Seventy years of data (1993 is dropped for missing days). With the top five
+days of each year, the estimate barely moves and the interval is about a fifth
+narrower; the standard error of ξ drops from 0.093 to 0.049. Pick `r` the
+same way: the largest value at which the estimates stay stable. If they drift
+as `r` grows, the smaller values of each year are not yet in the tail.
+`fit.return_level` takes `ci="delta"` or `ci="profile"`; the profile uses the
+r-largest likelihood. `fit.plot_diagnostics()` checks the fitted GEV against
+the annual maxima.
+
 ## Are these records happening more often than chance?
 
 `record_breaks` does not fit a GEV. Under an unchanging climate the chance that year `t` sets a record is `1/t`, so a 64-year series expects about 4.7 records of either kind. `foster_stuart` then asks two separate questions: are the records mostly highs rather than lows (a drift), and are there too many records of both kinds (the spread is changing)?
