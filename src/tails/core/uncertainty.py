@@ -378,7 +378,7 @@ def profile_pot_return_level(fit, period, alpha=0.05, n_points=41):
     return profile_return_level(fit, period, alpha=alpha, n_points=n_points)
 
 
-def bootstrap_pot_return_level(fit, period, n_boot=500, seed=0, alpha=0.05, chunk=50_000):
+def bootstrap_pot_return_level(fit, period, n_boot=500, seed=0, alpha=0.05):
     """Parametric percentile intervals for POT return levels, ``(B, len(period))`` each."""
     if getattr(fit, "zeta", None) is None:
         raise ValueError("bootstrap_pot_return_level is for POT fits")

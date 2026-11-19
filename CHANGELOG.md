@@ -37,9 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `return_level(covariates=...)` accepts a DataFrame with the fitted
   covariate columns.
 - `GPDFit.return_level(T)` gives the level exceeded once every `T` exceedances.
-- `tails.fit_rlargest` fits the GEV of block maxima to the `r` largest values
+- `tails.fit_gev(data, r=r)` fits the GEV of block maxima to the `r` largest values
   of each block (r-largest order statistics), batched over series, with NaN for
-  blocks that hold fewer values. `fit_gev(data, r=r)` is the same call. It
+  blocks that hold fewer values. It
   takes covariates (one row per block), `fixed_shape`, and `ci="delta"`,
   `"profile"` or `"bootstrap"`. `tails.block_top_r` takes the `r` largest separate events of
   each year from a datetime series. On Montréal-Trudeau daily rain (1942–2012),

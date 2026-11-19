@@ -1,8 +1,8 @@
 """Public entry points: one per model, two model families underneath.
 
 * **GEV family** — :func:`fit_gev`. Block maxima by default; ``r=k`` uses the
-  ``k`` largest values of each block (r-largest order statistics).
-  :func:`~tails.core.rlargest.fit_rlargest` is the same call.
+  ``k`` largest values of each block (r-largest order statistics; extract
+  them with :func:`~tails.core.blocks.block_top_r`).
 * **GPD family** — :func:`fit_gpd` fits the excesses only; :func:`fit_pot`
   adds the threshold and the exceedance rate (a Bernoulli component that can
   take covariates), which gives return levels in years.
@@ -52,8 +52,8 @@ def _prepare_blocks(data, r):
     return np.where(mask, srt, 0.0), mask, batch_shape, n, r
 
 
-def _gev(data, r, covs, mask, method, prior, max_iter, fixed_shape, rlargest_input=False):
-    if r is None and not rlargest_input:
+def _gev(data, r, covs, mask, method, prior, max_iter, fixed_shape):
+    if r is None:
         y2, m2, batch_shape, n = prepare(data, mask)
         z, zm, rr, n_obs = y2, m2, 1, None
     else:

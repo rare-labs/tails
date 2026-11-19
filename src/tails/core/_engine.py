@@ -2,8 +2,8 @@
 
 **GEV family.** One likelihood for the ``r`` largest values of each block
 (Coles, 2001, §3.5). ``r = 1`` is exactly the GEV likelihood of block maxima,
-so ``fit_gev`` and ``fit_rlargest`` are the same model with a different
-amount of data per block.
+so ``fit_gev(y)`` and ``fit_gev(top, r=k)`` are the same model with a
+different amount of data per block.
 
 **GPD family.** One likelihood for threshold excesses. Turning on the
 exceedance-rate component adds a Bernoulli term for every observation (does
@@ -175,7 +175,6 @@ GPD = Likelihood("gpd", "gpd", ("scale", "shape"), ("log", "identity"),
 POT = Likelihood("pot", "gpd", ("scale", "shape", "rate"), ("log", "identity", "logit"),
                  _pot_contrib, _pot_derivs, _gpd_level, _gpd_invert, "scale")
 LIKELIHOODS = {"gev": GEV, "gpd": GPD, "pot": POT}
-FAMILIES = LIKELIHOODS  # backward-compatible name
 
 
 # ----------------------------------------------------------------- shape priors
@@ -341,16 +340,6 @@ def objective(spec: Spec):
     return fun, vgh
 
 
-# Backward-compatible builders (GEV / GPD, all coefficients free).
-def make_nll(family_name: str, ks: tuple[int, ...], prior: str | None):
-    return full_nll(Spec(family_name, tuple(ks), prior))
-
-
-def make_vgh(family_name: str, ks: tuple[int, ...], prior: str | None):
-    _, vgh = objective(Spec(family_name, tuple(ks), prior))
-    return lambda theta, y, mask, *Xs: vgh(theta, y, mask, None, *Xs)
-
-
 # ------------------------------------------------------------------- designs
 @dataclass
 class Design:
@@ -413,7 +402,7 @@ def _as_cov_array(cov, n, batch_shape):
     return cov, names, shared
 
 
-def build_design(cov, n: int, batch_shape: tuple, B: int, prefix: str) -> Design:
+def build_design(cov, n: int, batch_shape: tuple, prefix: str) -> Design:
     if cov is None:
         return Design(np.ones((n, 1)), [f"{prefix}"], np.zeros(0), np.ones(0), True)
     arr, names, shared = _as_cov_array(cov, n, batch_shape)

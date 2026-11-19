@@ -1,7 +1,7 @@
 """Generic maximum-likelihood fitting and the fit object every model returns.
 
-``fit_gev``, ``fit_rlargest``, ``fit_gpd`` and ``fit_pot`` are thin front ends
-for :func:`fit_model`. It takes prepared data, covariates for any parameter,
+``fit_gev`` (block maxima or r-largest), ``fit_gpd`` and ``fit_pot`` are thin
+front ends for :func:`fit_model`. It takes prepared data, covariates for any parameter,
 optional fixed parameters and a prior, and returns the fields of a
 :class:`ModelFit`. Return levels, delta / profile / bootstrap intervals,
 coefficient intervals and plots are methods of that one class, so they work
@@ -231,7 +231,7 @@ def fit_model(lik_key, y, mask, batch_shape, covs: Mapping[str, Any], *, method=
     if fixed and method != "mle":
         raise ValueError("fixed parameters (e.g. fixed_shape) require method='mle'")
     B, n = y.shape[0], y.shape[1]
-    designs = [build_design(covs.get(nm), n, batch_shape, B, nm) for nm in lik.params]
+    designs = [build_design(covs.get(nm), n, batch_shape, nm) for nm in lik.params]
     raws = [raw_design(covs.get(nm), n) for nm in lik.params]
     ks = tuple(d.k for d in designs)
     p = int(sum(ks))

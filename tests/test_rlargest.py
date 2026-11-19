@@ -5,7 +5,7 @@ from scipy.optimize import minimize as sp_minimize
 from scipy.stats import genextreme
 
 import tails
-from tails import block_top_r, fit_rlargest
+from tails import block_top_r, fit_gev
 
 
 def _top_r(rng, n_years=40, r=4, n_days=365):
@@ -26,7 +26,7 @@ def _scipy_nll(theta, z):
 def test_r1_is_the_gev_fit():
     rng = np.random.default_rng(0)
     z = _top_r(rng, r=3)
-    f1 = fit_rlargest(z, r=1)
+    f1 = fit_gev(z, r=1)
     g = tails.fit_gev(z[:, 0])
     np.testing.assert_allclose(f1.coef, g.coef, rtol=1e-6, atol=1e-8)
     np.testing.assert_allclose(f1.loglik, g.loglik, rtol=1e-9)
@@ -36,7 +36,7 @@ def test_r1_is_the_gev_fit():
 def test_matches_independent_scipy_likelihood():
     rng = np.random.default_rng(1)
     z = _top_r(rng, r=4)
-    f = fit_rlargest(z)
+    f = fit_gev(z, r=4)
     assert bool(f.converged)
     theta = np.asarray(f.coef)
     np.testing.assert_allclose(-_scipy_nll(theta, z), f.loglik, rtol=1e-9)
@@ -53,8 +53,8 @@ def test_ragged_blocks_and_order_within_block():
     z_ragged[5, 2] = np.nan
     z_ragged[7, 1:] = np.nan
     shuffled = z_ragged[:, ::-1]
-    a = fit_rlargest(z_ragged)
-    b = fit_rlargest(shuffled)
+    a = fit_gev(z_ragged, r=3)
+    b = fit_gev(shuffled, r=3)
     np.testing.assert_allclose(a.coef, b.coef, rtol=1e-8)
     keep = np.isfinite(z_ragged)
     theta = np.asarray(a.coef)
@@ -69,16 +69,16 @@ def test_ragged_blocks_and_order_within_block():
 def test_batch_equals_separate_fits():
     rng = np.random.default_rng(3)
     z1, z2 = _top_r(rng, r=3), _top_r(rng, r=3)
-    both = fit_rlargest(np.stack([z1, z2]))
+    both = fit_gev(np.stack([z1, z2]), r=3)
     assert both.coef.shape == (2, 3)
-    np.testing.assert_allclose(both.coef[0], fit_rlargest(z1).coef, rtol=1e-6)
-    np.testing.assert_allclose(both.coef[1], fit_rlargest(z2).coef, rtol=1e-6)
+    np.testing.assert_allclose(both.coef[0], fit_gev(z1, r=3).coef, rtol=1e-6)
+    np.testing.assert_allclose(both.coef[1], fit_gev(z2, r=3).coef, rtol=1e-6)
 
 
 def test_return_levels_and_profile():
     rng = np.random.default_rng(4)
     z = _top_r(rng, n_years=50, r=3)
-    f = fit_rlargest(z)
+    f = fit_gev(z, r=3)
     rl = f.return_level([10, 100], ci="profile")
     assert rl.estimate.shape == (2,)
     assert np.all(rl.lower < rl.estimate) and np.all(rl.estimate < rl.upper)
@@ -104,6 +104,6 @@ def test_block_top_r_separation():
 
 def test_input_checks():
     with pytest.raises(ValueError):
-        fit_rlargest(np.arange(10.0))
+        fit_gev(np.arange(10.0), r=1)
     with pytest.raises(ValueError):
-        fit_rlargest(np.ones((10, 3)), r=4)
+        fit_gev(np.ones((10, 3)), r=4)

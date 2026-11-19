@@ -118,7 +118,7 @@ def how_rare(
     sentence = _sentence(value, T, lo, hi, alpha, unit, name, event_date, annual=annual_index)
     out_ax = None
     if plot or ax is not None:
-        out_ax = _plot_event(fit, value, T, lo, hi, alpha, unit, name, event_date, ax, ci)
+        out_ax = _plot_event(fit, value, T, lo, hi, alpha, unit, name, ax, ci)
     return HowRare(
         value=float(value),
         return_period=float(T),
@@ -368,7 +368,7 @@ def _sentence(value, T, lo, hi, alpha, unit, name, event_date, annual: bool = Fa
     return ev + "."
 
 
-def _plot_event(fit, value, T, lo, hi, alpha, unit, name, event_date, ax, ci):
+def _plot_event(fit, value, T, lo, hi, alpha, unit, name, ax, ci):
     from .plotting import apply_axes_style, color, require_matplotlib
 
     plt = require_matplotlib()

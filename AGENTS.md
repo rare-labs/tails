@@ -21,7 +21,7 @@ Source: https://github.com/rare-labs/tails
 | Fit GEV to block maxima | `tails.fit_gev(y)` or `tails.fit_gev(Y)` with `Y.shape == (n_series, n)` |
 | Return levels + CI | `fit.return_level([20, 100], ci="profile")` — `"delta"`, `"profile"`, `"bootstrap"` |
 | Non-stationary GEV | `tails.fit_gev(y, loc=covariate, scale=..., shape=...)` |
-| More than one value per year (r-largest) | `top = tails.block_top_r(daily, 5, min_separation="3D")`, then `tails.fit_gev(top.to_numpy(), r=5)` (same as `tails.fit_rlargest(top.to_numpy(), r=5)`). Same GEV parameters, covariates and `ci` options as block maxima; `r=1` is block maxima |
+| More than one value per year (r-largest) | `top = tails.block_top_r(daily, 5, min_separation="3D")`, then `tails.fit_gev(top.to_numpy(), r=5)`. Same GEV parameters, covariates and `ci` options as block maxima; `r=1` is block maxima |
 | GPD / POT | `tails.fit_gpd(excesses)` / `tails.fit_pot(series, threshold=..., npy=365.25)`. POT takes covariates on `scale`, `shape` and `rate` (one row per observation) |
 | Season or annual maximum from POT | `pot.return_level([50], kind="block")`: the level the block maximum exceeds with probability 1/T (default `kind="interval"`: exceeded once every T years on average) |
 | Return level at new covariate values | `fit.return_level([100], covariates={"loc": rows})` or a DataFrame with the fitted covariate columns; `fit.params_at(rows)` for the parameters |
@@ -48,8 +48,7 @@ is enough for `fit_gev` / `fit_gpd` / `fit_pot` / `how_rare` / `fit_block_maxima
 Every fit is one of two likelihoods in `tails.core._engine`:
 
 - **GEV family**: block maxima are the `r = 1` case of the r-largest
-  likelihood. `fit_gev(y)`, `fit_gev(top, r=5)` and `fit_rlargest(top, r=5)`
-  are the same model.
+  likelihood. `fit_gev(y)` and `fit_gev(top, r=5)` are the same model.
 - **GPD family**: `fit_gpd` fits excesses. `fit_pot` is the same GPD with an
   exceedance-rate component (Bernoulli per observation, logit link).
 

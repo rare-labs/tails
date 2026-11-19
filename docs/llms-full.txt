@@ -59,12 +59,11 @@ tails.fit_pot(data, threshold, npy=365.25, decluster=None, scale=None,
   intervals. coef/cov/loglik/n_params are the GPD part; rate_coef, rate_cov,
   loglik_rate, zeta, rate describe the rate.
 
-tails.fit_rlargest(data, r=None, loc=None, scale=None, shape=None, ...)
-  Same as fit_gev(data, r=r). data (*batch, n_blocks, r_max): the largest
-  values of each block, any order, NaN-padded. r=1 equals fit_gev on the
-  maxima. Returns RLargestFit (a GEVFit) with the same methods.
 tails.block_top_r(series, r, freq="YS", min_separation=None, min_count=None)
   DataFrame, one row per block, columns 1..r, events at least min_separation apart.
+  Feed it to fit_gev(top.to_numpy(), r=r): data (*batch, n_blocks, r_max), the
+  largest values of each block, any order, NaN-padded. r=1 equals fit_gev on
+  the maxima. Returns a GEVFit (fit.r is the number of values per block).
 
 tails.block_maxima, decluster_runs, extremal_index
 tails.mean_residual_life, parameter_stability, select_threshold

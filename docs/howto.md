@@ -449,7 +449,7 @@ of a year come from the same tail, and the r-largest model uses them: it fits
 the same GEV (`loc`, `scale`, `shape` of the annual maximum) to the `r`
 largest values of each block. `tails.block_top_r` picks those values from a
 datetime series, keeping events apart so one storm counts once, and
-`tails.fit_rlargest` fits them. `r=1` is the ordinary `fit_gev`.
+`tails.fit_gev(top, r=r)` fits them. `r=1` is the ordinary block-maxima fit.
 
 ```python
 import tails
@@ -462,7 +462,7 @@ rain = eccc_daily("7025250", (1942, 2012))["precip"]
 top = tails.block_top_r(rain, 5, min_separation="3D", min_count=330)
 
 for r in (1, 3, 5):
-    fit = tails.fit_rlargest(top.to_numpy(), r=r)
+    fit = tails.fit_gev(top.to_numpy(), r=r)
     rl = fit.return_level([100], ci="profile")
     print(f"r={r}: xi={float(fit.params['shape']):+.3f}  "
           f"100-year day = {rl.estimate[0]:.1f} mm "
@@ -488,8 +488,7 @@ r-largest is not a separate model. tails has two model families, and the
 rest are options:
 
 - **GEV family.** `fit_gev(data)` uses one value per block. `fit_gev(data, r=5)`
-  uses five; `fit_rlargest(data, r=5)` is the same call. The parameters are
-  always those of the annual maximum.
+  uses five. The parameters are always those of the annual maximum.
 - **GPD family.** `fit_gpd` fits the excesses over a threshold. `fit_pot`
   adds how often the threshold is crossed (the exceedance rate), which turns
   excesses into levels per year. It uses every storm above the threshold,
@@ -512,7 +511,7 @@ import pandas as pd
 
 # GEV family: the five largest days of each year, with a trend in the location.
 year = pd.Series(top.index.year, name="year", dtype=float)
-gev = tails.fit_gev(top.to_numpy(), r=5, loc=year)   # same call as fit_rlargest(..., loc=year)
+gev = tails.fit_gev(top.to_numpy(), r=5, loc=year)
 slope, se = gev.coef[1], gev.se[1]
 print(f"location trend: {10 * slope:+.2f} mm per decade (SE {10 * se:.2f})")
 rl = gev.return_level([100], covariates=pd.DataFrame({"year": [1950.0, 2010.0]}), ci="profile")

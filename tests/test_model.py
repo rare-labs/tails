@@ -50,7 +50,7 @@ def test_engine_reproduces_the_per_model_code(golden_data):
     exp = tails.fit_pot(x, 2.0, npy=100.0, fixed_shape=0.0)
     r = exp.return_level([10], ci="profile")
     np.testing.assert_allclose(np.stack([r.estimate, r.lower, r.upper]), POTEXP_PROF, rtol=1e-6)
-    rl = tails.fit_rlargest(z)
+    rl = tails.fit_gev(z, r=z.shape[-1])
     np.testing.assert_allclose(rl.coef, RL_COEF, rtol=1e-6)
     r = rl.return_level([50], ci="profile")
     np.testing.assert_allclose(np.stack([r.estimate, r.lower, r.upper]), RL_PROF, rtol=1e-6)
@@ -67,13 +67,12 @@ def _rlargest_with_trend(rng, n=60, r=3, slope=0.15):
     return z, t
 
 
-def test_fit_gev_r_is_fit_rlargest_and_r1_is_block_maxima():
+def test_fit_gev_r_and_r1_is_block_maxima():
     rng = np.random.default_rng(11)
     z, _ = _rlargest_with_trend(rng)
     a = tails.fit_gev(z, r=3)
-    b = tails.fit_rlargest(z)
-    np.testing.assert_allclose(a.coef, b.coef, rtol=1e-10)
-    assert a.r == b.r == 3 and isinstance(b, tails.GEVFit)
+    assert a.r == 3 and isinstance(a, tails.GEVFit) and a.coef.shape == (3,)
+    assert not hasattr(tails, "fit_rlargest") and not hasattr(tails, "RLargestFit")
     one = tails.fit_gev(z, r=1)
     np.testing.assert_allclose(one.coef, tails.fit_gev(z.max(axis=1)).coef, rtol=1e-8)
 
@@ -81,7 +80,7 @@ def test_fit_gev_r_is_fit_rlargest_and_r1_is_block_maxima():
 def test_covariate_rlargest_matches_independent_likelihood():
     rng = np.random.default_rng(12)
     z, t = _rlargest_with_trend(rng)
-    f = tails.fit_rlargest(z, loc=t)
+    f = tails.fit_gev(z, r=3, loc=t)
     assert bool(f.converged)
     assert f.param_names == ["loc", "loc:x0", "log_scale", "shape"]
 
@@ -118,7 +117,7 @@ def test_fixed_shape_is_the_generic_path():
     assert g._spec.free == (0, 1)
     # a fixed shape on r-largest data and with a location trend also go through the same path
     z, t = _rlargest_with_trend(rng)
-    fr = tails.fit_rlargest(z, loc=t, fixed_shape=0.1)
+    fr = tails.fit_gev(z, r=3, loc=t, fixed_shape=0.1)
     assert fr.converged and np.allclose(fr.params["shape"], 0.1) and fr.n_params == 3
     lo, hi = fr.return_level([20], covariates={"loc": [10.0]}, ci="profile").lower, None
     assert np.isfinite(lo).all()

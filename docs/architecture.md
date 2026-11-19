@@ -19,7 +19,7 @@ Every fit in `tails.core` is one of two likelihoods:
 
 | Family | Likelihood | Entry points | Options |
 |---|---|---|---|
-| GEV | r largest values per block; `r = 1` is block maxima | `fit_gev`, `fit_gev(..., r=k)`, `fit_rlargest` | covariates on `loc`, `scale`, `shape`; `fixed_shape`; `method="gmle"` |
+| GEV | r largest values per block; `r = 1` is block maxima | `fit_gev`, `fit_gev(..., r=k)` with `block_top_r` | covariates on `loc`, `scale`, `shape`; `fixed_shape`; `method="gmle"` |
 | GPD | excesses over a threshold, plus an optional exceedance-rate term (Bernoulli per observation, logit link) | `fit_gpd` (no rate), `fit_pot` (rate on) | covariates on `scale`, `shape`, `rate`; `fixed_shape`; `kind="block"` return levels |
 
 The modules stack like this:
@@ -39,8 +39,9 @@ The modules stack like this:
   replaces the location or scale intercept at each covariate row), one for
   coefficients, and one parametric bootstrap (r-largest blocks are simulated
   from the limiting Poisson process; POT replicates redraw the exceedances).
-- `fit.py` and `rlargest.py` are the public front ends: they prepare data
-  (excesses, top-r blocks) and call `fit_model`.
+- `fit.py` holds the public front ends: they prepare data (excesses, top-r
+  blocks) and call `fit_model`. `blocks.py` extracts block maxima and the top
+  `r` values per block (`block_top_r`).
 
 A new model is a new `Likelihood`; it gets batching, covariates, fixed
 parameters, profile and bootstrap intervals, and return levels from the
