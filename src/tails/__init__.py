@@ -22,9 +22,11 @@ from . import (
     core,
     records,
 )
+from .conditional import ConditionalFit, ConditionalQuantiles, fit_conditional
 from .core import *  # noqa: F401,F403
 from .core import __all__ as _core_all
 from .how_rare import HowRare, how_rare
+from .joint import JointRarity, compound_series, how_rare_joint
 from .series import SeriesExtremes, fit_block_maxima, fit_peaks
 
 __version__ = "0.1.0"
@@ -35,6 +37,12 @@ __all__ = [
     "__version__",
     "how_rare",
     "HowRare",
+    "JointRarity",
+    "compound_series",
+    "how_rare_joint",
+    "ConditionalFit",
+    "ConditionalQuantiles",
+    "fit_conditional",
     "fit_block_maxima",
     "fit_peaks",
     "SeriesExtremes",

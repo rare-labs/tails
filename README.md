@@ -15,6 +15,9 @@ enough to always report. The import is `tails`. The package name on PyPI is
 [Docs](https://rare-labs.github.io/tails/) · [Quickstart](docs/quickstart.md) · [Québec City IDF tutorial](docs/tutorial_quebec_idf.md) ·
 [Landscape](docs/landscape.md)
 
+[Joint and conditional extremes](docs/compound.md): simultaneous exceedances,
+k-of-n events, regional sums, consecutive-day runs and conditional tail models.
+
 ## Install
 
 ```bash

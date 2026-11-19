@@ -1,6 +1,8 @@
 # Core API
 
 ::: tails.series
+::: tails.joint
+::: tails.conditional
 ::: tails.core.fit.fit_gev
 ::: tails.core.fit.fit_gpd
 ::: tails.core.fit.fit_pot

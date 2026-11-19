@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Joint-event return periods and expected-count profile intervals through
+  `tails.how_rare_joint`, with threshold normalisation, k-of-n and sum events,
+  consecutive-day runs, and replicate pooling. `tails.compound_series` exposes
+  the scalar reduction. `tails.xarray.how_rare_joint` handles arbitrary grids,
+  labelled regional masks and Dask-backed independent analyses.
+- `tails.fit_conditional` fits Heffernan--Tawn conditional extremes with
+  semiparametric Laplace margins, batched JAX normalisations, joint residual
+  simulation and pairs-bootstrap conditional-quantile intervals.
 - `tails.plot_return_level_map(levels, lon, lat)` draws one return level from
   a batch fit at longitude and latitude. Stations are a scatter; a latitude
   by longitude grid is a mesh. Coordinates come from the arguments or from

@@ -73,6 +73,7 @@ dev = [
 ]
 test = [
   "pytest>=7",
+  "cftime>=1.6",
   "hypothesis>=6.90",
   "pytest-cov",
   "xarray>=2023.1",

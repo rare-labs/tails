@@ -19,7 +19,99 @@ import numpy as np
 from .core.distributions import gev_ppf
 from .core.fit import fit_gev as _fit_gev
 
-__all__ = ["fit_gev", "return_level", "fit_idf", "idf_quantile"]
+__all__ = ["fit_gev", "return_level", "fit_idf", "idf_quantile", "how_rare_joint"]
+
+
+def how_rare_joint(da, thresholds, *, dim: str = "time", spatial_dims=None, replicate_dim: str | None = None,
+                   regions=None, **kwargs):
+    """Compound-event risk over arbitrary labelled locations or grids.
+
+    ``spatial_dims`` are jointly reduced (default: all dimensions except
+    ``dim`` and ``replicate_dim``). Other dimensions index separate analyses.
+    ``replicate_dim``, if supplied, pools independent records before fitting.
+    ``regions`` optionally maps region names to boolean spatial DataArrays;
+    each region selects its own sites and produces one result. Threshold
+    DataArrays must have exactly matching spatial coordinates. Coordinates
+    may describe any grid or user-supplied locations; no 5x5 assumption.
+
+    Keyword arguments go to :func:`tails.how_rare_joint`. Returns a Dataset
+    with daily probability/rate, years between events, expected-count bounds,
+    and mean observed count. Dask core dimensions must be single chunks;
+    independent batch dimensions can be chunked. Daily datetime gaps are
+    reindexed to missing days before constructing consecutive-day windows.
+    """
+    import pandas as pd
+    import xarray as xr
+
+    from .joint import how_rare_joint as analyse
+
+    spatial_dims = list(spatial_dims) if spatial_dims is not None else [d for d in da.dims if d not in (dim, replicate_dim)]
+    core = ([replicate_dim] if replicate_dim else []) + spatial_dims + [dim]
+    if not spatial_dims or len(set(core)) != len(core) or any(d not in da.dims for d in core):
+        raise ValueError("spatial, time and replicate dimensions must be distinct and present")
+    _reject_split_chunks(da, core)
+    if dim in da.indexes and isinstance(da.indexes[dim], (pd.DatetimeIndex, xr.CFTimeIndex)):
+        idx = da.indexes[dim]
+        midnight = idx.equals(idx.normalize()) if isinstance(idx, pd.DatetimeIndex) else all(
+            t.hour == t.minute == t.second == t.microsecond == 0 for t in idx)
+        if not idx.is_monotonic_increasing or idx.has_duplicates or not midnight:
+            raise ValueError("dates must be unique increasing daily dates at midnight")
+        if isinstance(idx, pd.DatetimeIndex):
+            dates = pd.date_range(idx.min(), idx.max(), freq="D")
+        else:
+            dates = xr.date_range(idx.min(), idx.max(), freq="D", calendar=idx.calendar, use_cftime=True)
+            if idx.calendar in ("noleap", "365_day", "360_day"):
+                kwargs.setdefault("npy", 360 if idx.calendar == "360_day" else 365)
+        da = da.reindex({dim: dates})
+        if da.chunks:
+            da = da.chunk({dim: -1})
+    spatial = da.isel({d: 0 for d in da.dims if d not in spatial_dims}, drop=True)
+
+    def align_spatial(other):
+        xr.align(spatial, other, join="exact")
+        for coord in spatial.coords:
+            if coord in other.coords and not spatial[coord].equals(other[coord]):
+                raise ValueError(f"conflicting spatial coordinate {coord!r}")
+    if isinstance(thresholds, xr.DataArray):
+        if any(d not in spatial_dims for d in thresholds.dims):
+            raise ValueError("thresholds can only have spatial dimensions")
+        align_spatial(thresholds)
+        threshold_array = thresholds.broadcast_like(spatial).transpose(*spatial_dims)
+    else:
+        threshold_array = xr.full_like(spatial, float(thresholds), dtype=float)
+    masks = regions if regions is not None else {None: xr.ones_like(spatial, dtype=bool)}
+    if not masks:
+        raise ValueError("regions must contain at least one nonempty mask")
+    names = ["probability", "return_period", "lower", "upper", "expected_count", "count_lower", "count_upper",
+             "observed_count", "record_length", "fit_threshold"]
+    datasets = []
+    for name, region in masks.items():
+        if not isinstance(region, xr.DataArray) or any(d not in spatial_dims for d in region.dims) or region.dtype != bool:
+            raise ValueError("region masks must be boolean spatial DataArrays")
+        align_spatial(region)
+        region = region.broadcast_like(spatial).transpose(*spatial_dims)
+
+        def block(arr, us, selected):
+            keep = selected.reshape(-1)
+            if not keep.any():
+                raise ValueError("region must contain at least one site")
+            nrep = arr.shape[0] if replicate_dim else 1
+            x = arr.reshape(nrep, -1, arr.shape[-1])[:, keep, :]
+            result = analyse(x, us.reshape(-1)[keep], **kwargs)
+            return np.asarray([np.nan if getattr(result, n) is None else getattr(result, n) for n in names])
+
+        result = xr.apply_ufunc(block, da, threshold_array, region, input_core_dims=[core, spatial_dims, spatial_dims],
+                                output_core_dims=[["_stat"]], vectorize=True, dask="parallelized", output_dtypes=[float],
+                                dask_gufunc_kwargs={"output_sizes": {"_stat": len(names)}})
+        ds = xr.Dataset({n: result.isel(_stat=i, drop=True) for i, n in enumerate(names)})
+        if regions is not None:
+            ds = ds.expand_dims(region=[name])
+        datasets.append(ds)
+    out = xr.concat(datasets, dim="region") if regions is not None else datasets[0]
+    out.attrs.update(tails_model="joint_pot", event=kwargs.get("event", "all"), run_length=kwargs.get("run_length", 1))
+    out.return_period.attrs["units"] = "years"
+    out.probability.attrs["description"] = "Event or run-cluster rate per original observation"
+    return out
 
 
 def _fit_block(arr, covs, method, n_out):
