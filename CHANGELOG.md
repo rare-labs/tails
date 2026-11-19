@@ -7,12 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- One engine for every model. There are two likelihood families: the GEV
+  family (block maxima are the `r = 1` case of the r-largest likelihood) and
+  the GPD family (POT is the GPD with an exceedance-rate component). Fitting,
+  profile likelihoods, the bootstrap and return levels are written once
+  (`tails.core.model`, `tails.core.uncertainty`), so every model gets
+  covariates, fixed parameters and all three interval types. Public names
+  are unchanged; the old profile and bootstrap functions are thin wrappers.
+  Results match the previous code to about 1e-8.
+- `fixed_shape` now works with location and scale covariates and with
+  `ci="bootstrap"` (the shape stays fixed in the refits).
+- Profile intervals of a stationary GEV fitted with `method="gmle"` now keep
+  the shape prior in the profiled objective, as the non-stationary GEV and POT
+  profiles already did. Those intervals are narrower than before.
+- Intercept-only parameters skip a matrix product in the likelihood and its
+  derivatives, which makes stationary fits faster.
+
 ### Added
 
+- `fit_pot` takes covariates on `scale`, `shape` and `rate` (the exceedance
+  probability, logit link), and POT return levels work for non-stationary
+  fits with all three interval types. `return_level(..., kind="block")` gives
+  the level that the block (annual or seasonal) maximum exceeds with
+  probability 1/T.
+- `fit.confint()` gives profile-likelihood (or Wald) intervals for every
+  coefficient. `fit.params_at(rows)` gives the parameters at covariate rows.
+  `return_level(covariates=...)` accepts a DataFrame with the fitted
+  covariate columns.
+- `GPDFit.return_level(T)` gives the level exceeded once every `T` exceedances.
 - `tails.fit_rlargest` fits the GEV of block maxima to the `r` largest values
   of each block (r-largest order statistics), batched over series, with NaN for
-  blocks that hold fewer values. Return levels take `ci="delta"` or
-  `ci="profile"`. `tails.block_top_r` takes the `r` largest separate events of
+  blocks that hold fewer values. `fit_gev(data, r=r)` is the same call. It
+  takes covariates (one row per block), `fixed_shape`, and `ci="delta"`,
+  `"profile"` or `"bootstrap"`. `tails.block_top_r` takes the `r` largest separate events of
   each year from a datetime series. On Montréal-Trudeau daily rain (1942–2012),
   `r=5` narrows the 100-year interval by about a fifth compared with annual maxima.
 - `tails.plot_return_level_map(levels, lon, lat)` draws one return level from

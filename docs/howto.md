@@ -480,9 +480,77 @@ days of each year, the estimate barely moves and the interval is about a fifth
 narrower; the standard error of ξ drops from 0.093 to 0.049. Pick `r` the
 same way: the largest value at which the estimates stay stable. If they drift
 as `r` grows, the smaller values of each year are not yet in the tail.
-`fit.return_level` takes `ci="delta"` or `ci="profile"`; the profile uses the
-r-largest likelihood. `fit.plot_diagnostics()` checks the fitted GEV against
-the annual maxima.
+`fit.return_level` takes `ci="delta"`, `"profile"` or `"bootstrap"`; the
+profile uses the r-largest likelihood. `fit.plot_diagnostics()` checks the
+fitted GEV against the annual maxima.
+
+r-largest is not a separate model. tails has two model families, and the
+rest are options:
+
+- **GEV family.** `fit_gev(data)` uses one value per block. `fit_gev(data, r=5)`
+  uses five; `fit_rlargest(data, r=5)` is the same call. The parameters are
+  always those of the annual maximum.
+- **GPD family.** `fit_gpd` fits the excesses over a threshold. `fit_pot`
+  adds how often the threshold is crossed (the exceedance rate), which turns
+  excesses into levels per year. It uses every storm above the threshold,
+  not a fixed number per year.
+
+So covariates, `fixed_shape`, and the three kinds of interval work the same way
+in both families.
+
+## How do I put a trend on an r-largest or POT fit?
+
+Give the covariate to the parameter that should move, with one row per block
+(r-largest) or one row per observation (POT). This continues the Montréal
+example above (`rain` and `top`). For POT, the rate can take covariates too,
+and `kind="block"` asks for the level that the annual maximum exceeds with
+probability 1/T. The default, `kind="interval"`, is the level exceeded on
+average once every T years.
+
+```python
+import pandas as pd
+
+# GEV family: the five largest days of each year, with a trend in the location.
+year = pd.Series(top.index.year, name="year", dtype=float)
+gev = tails.fit_gev(top.to_numpy(), r=5, loc=year)   # same call as fit_rlargest(..., loc=year)
+slope, se = gev.coef[1], gev.se[1]
+print(f"location trend: {10 * slope:+.2f} mm per decade (SE {10 * se:.2f})")
+rl = gev.return_level([100], covariates=pd.DataFrame({"year": [1950.0, 2010.0]}), ci="profile")
+for y, e, lo, hi in zip((1950, 2010), rl.estimate[:, 0], rl.lower[:, 0], rl.upper[:, 0]):
+    print(f"GEV, r=5   {y}: 100-year day {e:.1f} mm (95% CI {lo:.1f}–{hi:.1f})")
+
+# GPD family: every storm above 25 mm, with the exceedance rate trending by year.
+day_year = pd.Series(rain.index.year, name="year", dtype=float)
+pot = tails.fit_pot(rain.to_numpy(), 25.0, npy=365.25, decluster=3, rate=day_year)
+per_year = pot.params_at({"rate": [1950.0, 2010.0]})["rate"] * 365.25
+print(f"storms above 25 mm per year: {per_year[0]:.1f} in 1950, {per_year[1]:.1f} in 2010")
+for kind in ("interval", "block"):
+    rl = pot.return_level([2, 100], covariates={"rate": [1950.0, 2010.0]}, kind=kind, ci="profile")
+    for i, y in enumerate((1950, 2010)):
+        print(f"POT, {kind:8s} {y}: 2-year {rl.estimate[i, 0]:.1f} mm, "
+              f"100-year {rl.estimate[i, 1]:.1f} mm (95% CI {rl.lower[i, 1]:.1f}–{rl.upper[i, 1]:.1f})")
+```
+
+```text
+location trend: +0.74 mm per decade (SE 0.26)
+GEV, r=5   1950: 100-year day 90.3 mm (95% CI 77.5–113.7)
+GEV, r=5   2010: 100-year day 94.7 mm (95% CI 82.2–117.8)
+storms above 25 mm per year: 4.4 in 1950, 6.9 in 2010
+POT, interval 1950: 2-year 47.4 mm, 100-year 89.3 mm (95% CI 78.1–111.0)
+POT, interval 2010: 2-year 52.0 mm, 100-year 94.3 mm (95% CI 81.3–120.1)
+POT, block    1950: 2-year 44.0 mm, 100-year 89.3 mm (95% CI 78.0–110.9)
+POT, block    2010: 2-year 48.6 mm, 100-year 94.2 mm (95% CI 81.3–120.0)
+```
+
+The two families agree: the 100-year day is about 90 mm in 1950 and 94 mm in
+2010, with intervals that overlap widely. POT sees the change as more
+storms above 25 mm per year, not bigger ones. The two definitions of a return
+period differ for frequent events, but they meet by 100 years.
+
+`covariates` takes `{parameter: rows}` or a DataFrame that has the fitted
+covariate columns (pass pandas covariates to `fit_*` to keep the names).
+`fit.params_at(rows)` gives the parameters at those rows, and `fit.confint()`
+gives profile-likelihood intervals for every coefficient.
 
 ## Are these records happening more often than chance?
 

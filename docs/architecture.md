@@ -13,6 +13,40 @@
 4. **Uncertainty is part of the batch.** Profile likelihoods (many series × covariate rows × return
    periods × grid points), POT and GEV bootstrap replicates and candidate thresholds are just more rows.
 
+## Two model families, options not models
+
+Every fit in `tails.core` is one of two likelihoods:
+
+| Family | Likelihood | Entry points | Options |
+|---|---|---|---|
+| GEV | r largest values per block; `r = 1` is block maxima | `fit_gev`, `fit_gev(..., r=k)`, `fit_rlargest` | covariates on `loc`, `scale`, `shape`; `fixed_shape`; `method="gmle"` |
+| GPD | excesses over a threshold, plus an optional exceedance-rate term (Bernoulli per observation, logit link) | `fit_gpd` (no rate), `fit_pot` (rate on) | covariates on `scale`, `shape`, `rate`; `fixed_shape`; `kind="block"` return levels |
+
+The modules stack like this:
+
+- `_engine.py` registers each likelihood as a small `Likelihood` record: the
+  per-observation log-density in linear-predictor space, closed-form
+  derivatives where we have them (forward-mode autodiff otherwise), the
+  return-level map and its inverse. A `Spec` adds the design sizes, the prior
+  and which coefficients are free, so a fixed shape is "this coefficient is
+  not optimised", not a separate model. Nothing else in the package is
+  family-specific.
+- `model.py` has one fit driver (`fit_model`: L-moment start, feasibility
+  check, stationary fit, then the covariate fit) and one result class
+  (`ModelFit`) with `params`, `summary`, `confint`, `params_at`,
+  `return_level` and `plot_diagnostics`.
+- `uncertainty.py` has one profile likelihood for return levels (the level
+  replaces the location or scale intercept at each covariate row), one for
+  coefficients, and one parametric bootstrap (r-largest blocks are simulated
+  from the limiting Poisson process; POT replicates redraw the exceedances).
+- `fit.py` and `rlargest.py` are the public front ends: they prepare data
+  (excesses, top-r blocks) and call `fit_model`.
+
+A new model is a new `Likelihood`; it gets batching, covariates, fixed
+parameters, profile and bootstrap intervals, and return levels from the
+code above. Group-specific parameters with a shared shape are an indicator
+covariate on that parameter today.
+
 ## Why JAX (and not Numba)?
 
 | Need | JAX | Numba |
@@ -54,7 +88,7 @@ autodiff in the tests). A Numba/C++ kernel remains planned for JAX-free environm
 ## Data model and API
 
 - Arrays: `(*batch, n)` with NaN = missing; covariates `(n, k)` shared or `(*batch, n, k)` per series.
-- Results are dataclasses (`GEVFit`, `POTFit`, `IDFFit`) holding coefficients, covariance (observed
+- Results are dataclasses (`GEVFit`, `GPDFit`, `POTFit`, all sharing `ModelFit`, and `IDFFit`) holding coefficients, covariance (observed
   information), log-likelihood, convergence flags, and methods (`return_level(..., ci=...)`,
   `quantile_ci`, `summary`, `to_pandas`).
 - `tails.xarray.fit_gev(da, dim="time")` and

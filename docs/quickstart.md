@@ -95,7 +95,7 @@ axis label, and the call needs `pip install "rare-tails[plots]"`. See the
 the same `ci` values as a GEV fit.
 `"profile"` is the joint profile of the excesses and the exceedance rate;
 `"bootstrap"` resamples both and refits. An exponential model
-(`fixed_shape=0`) keeps ξ fixed in the profile interval.
+(`fixed_shape=0`) keeps ξ fixed in every interval.
 
 ## How do I work from an xarray Dataset?
 
