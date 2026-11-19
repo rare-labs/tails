@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   or any other series — and a pandas column name labels the axis. `period`
   defaults to 2, the median. Stationary GEV, GPD and POT diagnostics are unchanged.
 
+### Fixed
+
+- `eccc_daily` and `eccc_hourly` returned at most 20,000 rows: GeoMet reports a
+  smaller `numberMatched` on later pages, and the downloader stopped there. A
+  1942–2012 daily request for Montréal-Trudeau (7025250) ended in October 1996;
+  it now returns all 25,933 days. The cache key changed, so truncated cached
+  downloads are fetched again.
+
 ## [0.1.0] — 2026-11-18
 
 First public release. The import is `import tails`; the distribution name on PyPI is `rare-tails`

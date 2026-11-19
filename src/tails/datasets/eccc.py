@@ -205,7 +205,8 @@ def _observations(collection: str, station, years, *, cache: bool, timeout: int)
 
 
 def _cache_key(collection: str, climate_id: str, start: int, end: int) -> str:
-    raw = f"{collection}:{climate_id}:{start}:{end}"
+    # "v2": downloads cached before the paging fix may be truncated.
+    raw = f"v2:{collection}:{climate_id}:{start}:{end}"
     return collection + "-" + climate_id + "-" + f"{start}-{end}-" + hashlib.sha1(raw.encode()).hexdigest()[:10]
 
 
@@ -290,24 +291,32 @@ def _items(collection: str, params: dict, timeout: int = _DEFAULT_TIMEOUT) -> li
 
 
 def _paginate(url: str, params: dict | None, timeout: int) -> list[dict]:
+    """Follow ``next`` links until the server has returned every feature.
+
+    The total is read from the first page only. GeoMet reports a smaller
+    ``numberMatched`` on later pages (``offset + numberReturned``), so trusting
+    each page's count stopped long records after the second page (20,000
+    days, about 55 years of daily data).
+    """
     features: list[dict] = []
     next_url = url if params is None else url + "?" + urllib.parse.urlencode(params)
     seen = set()
+    total = None
     while next_url and next_url not in seen:
         seen.add(next_url)
         payload = _get_json(next_url, timeout=timeout)
         batch = payload.get("features") or []
         features.extend(batch)
+        if total is None and payload.get("numberMatched") is not None:
+            total = int(payload["numberMatched"])
         nxt = None
         for link in payload.get("links") or []:
             if link.get("rel") == "next" and link.get("href"):
                 nxt = link["href"]
                 break
-        # Stop if this page was empty or we have everything the server reported.
-        matched = payload.get("numberMatched")
         if not batch:
             break
-        if matched is not None and len(features) >= int(matched):
+        if total is not None and len(features) >= total:
             break
         next_url = nxt
     return features
