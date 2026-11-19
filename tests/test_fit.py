@@ -121,13 +121,17 @@ def test_fixed_negative_shape_matches_constraint(rng):
     assert free.loglik + 1e-4 >= fit.loglik
 
 
-def test_fixed_shape_rejects_covariates_and_bootstrap(rng):
-    y = rng.gumbel(0.0, 1.0, size=40)
-    with pytest.raises(ValueError, match="stationary"):
-        tails.fit_gev(y, loc=np.arange(40.0), fixed_shape=0.0)
+def test_fixed_shape_with_covariates_and_bootstrap(rng):
+    y = rng.gumbel(0.0, 1.0, size=40) + 0.05 * np.arange(40.0)
+    with pytest.raises(ValueError, match="fixed"):
+        tails.fit_gev(y, shape=np.arange(40.0), fixed_shape=0.0)
+    trend = tails.fit_gev(y, loc=np.arange(40.0), fixed_shape=0.0)
+    assert trend.converged and trend.n_params == 3
+    assert np.allclose(trend.params["shape"], 0.0)
     fit = tails.fit_gev(y, fixed_shape=0.0)
-    with pytest.raises(ValueError, match="bootstrap"):
-        fit.return_level([10], ci="bootstrap")
+    boot = fit.return_level([10], ci="bootstrap", n_boot=40, seed=1)
+    assert boot.lower[0] < boot.estimate[0] < boot.upper[0]
+    assert np.allclose(tails.bootstrap_coef(fit, n_boot=10)[..., 2], 0.0)
 
 
 def test_lmoments_known_values():

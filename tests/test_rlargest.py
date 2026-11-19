@@ -84,8 +84,8 @@ def test_return_levels_and_profile():
     assert np.all(rl.lower < rl.estimate) and np.all(rl.estimate < rl.upper)
     d = f.return_level([100], ci="delta")
     np.testing.assert_allclose(d.estimate, rl.estimate[1:])
-    with pytest.raises(ValueError, match="bootstrap"):
-        f.return_level([100], ci="bootstrap")
+    boot = f.return_level([100], ci="bootstrap", n_boot=60, seed=1)
+    assert boot.lower[0] < boot.estimate[0] < boot.upper[0]
 
 
 def test_block_top_r_separation():
