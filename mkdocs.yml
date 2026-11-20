@@ -17,6 +17,7 @@ nav:
   - How-to: howto.md
   - Joint events: compound.md
   - Conditional extremes: conditional.md
+  - Spatial joint risk: spatial.md
   - Four applications: applications.md
   - Tutorial – Québec City IDF: tutorial_quebec_idf.md
   - Architecture: architecture.md
