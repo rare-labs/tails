@@ -5,10 +5,11 @@
 Julia reference implementation at upstream commit `66a34d1` on the three
 stations that ship with IDFCurves.jl, using identical data.
 
-* `validation/idfcurves_reference.jl` runs the Julia models and writes
-  `tests/data/idfcurves_reference.json`.
-* `validation/compare_idfcurves.py` refits everything with `tails.idf` and writes
-  the table below; `tests/test_idf.py` re-checks a subset in CI.
+The reference-generation scripts, Julia environment and research reports are
+maintained outside this repository in a local validation workspace. The
+reference values used for automated regression tests remain in
+`tests/data/idfcurves_reference.json`; `tests/test_idf.py` re-checks a subset
+in CI. The table below records the historical reference comparison.
 
 Station ids (example files distributed with IDFCurves.jl): `702S006`
 Montréal Pierre-Elliott-Trudeau International Airport (QC), `6158731` Toronto
