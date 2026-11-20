@@ -25,6 +25,9 @@ from . import (
 from .core import *  # noqa: F401,F403
 from .core import __all__ as _core_all
 from .how_rare import HowRare, how_rare
+from .joint import JointRarity, compound_series, how_rare_joint
+from .margins import MarginalFit, TailMargin, fit_marginal
+from .resampling import BootstrapDiagnostics, BootstrapResult, bootstrap_statistic
 from .series import SeriesExtremes, fit_block_maxima, fit_peaks
 
 __version__ = "0.1.0"
@@ -35,6 +38,15 @@ __all__ = [
     "__version__",
     "how_rare",
     "HowRare",
+    "JointRarity",
+    "compound_series",
+    "how_rare_joint",
+    "TailMargin",
+    "MarginalFit",
+    "fit_marginal",
+    "BootstrapDiagnostics",
+    "BootstrapResult",
+    "bootstrap_statistic",
     "fit_block_maxima",
     "fit_peaks",
     "SeriesExtremes",
