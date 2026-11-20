@@ -19,7 +19,157 @@ import numpy as np
 from .core.distributions import gev_ppf
 from .core.fit import fit_gev as _fit_gev
 
-__all__ = ["fit_gev", "return_level", "fit_idf", "idf_quantile"]
+__all__ = ["fit_gev", "return_level", "fit_idf", "idf_quantile", "how_rare_joint"]
+
+
+def how_rare_joint(da, thresholds, *, dim="time", spatial_dims=None, replicate_dim=None,
+                   regions=None, groups=None, scales=None, directions=None, freq=None, **kwargs):
+    """Joint-event risk on arbitrary labelled grids or sets of locations.
+
+    ``spatial_dims`` are jointly reduced; remaining dimensions index separate
+    analyses. ``replicate_dim`` pools independent records. Boolean ``regions``
+    select subsets. Spatial threshold/scale/direction DataArrays must align
+    exactly, including shared auxiliary coordinates. Groups are time labels,
+    optionally varying by batch and replicate, and also align exactly.
+
+    Datetime/CFTime gaps are reindexed at an inferred or explicit ``freq``.
+    Fixed-frequency calendars determine observations/year unless ``npy`` is
+    supplied; ``npy=None`` reports periods in observations. All joint core
+    dimensions must occupy single Dask chunks. Batch dimensions may be chunked.
+
+    This reduces measured grid cells to one score; it does not interpolate,
+    estimate a spatial covariance kernel, or predict at unobserved locations.
+    Bootstrap diagnostics are numeric counts; detailed failure reasons and
+    draws are available through the underlying array API.
+    """
+    import pandas as pd
+    import xarray as xr
+
+    from .joint import how_rare_joint as analyse
+
+    spatial_dims = list(spatial_dims) if spatial_dims is not None else [d for d in da.dims if d not in (dim, replicate_dim)]
+    group_core = ([replicate_dim] if replicate_dim else []) + [dim]
+    core = ([replicate_dim] if replicate_dim else []) + spatial_dims + [dim]
+    if not spatial_dims or len(set(core)) != len(core) or any(d not in da.dims for d in core):
+        raise ValueError("spatial, time and replicate dimensions must be distinct and present")
+    _reject_split_chunks(da, core)
+    if groups is not None:
+        if not isinstance(groups, xr.DataArray):
+            values = np.asarray(groups)
+            dims = [dim] if values.ndim == 1 else group_core
+            groups = xr.DataArray(values, dims=dims, coords={d: da[d] for d in dims})
+        if dim not in groups.dims or any(d in spatial_dims or d not in da.dims for d in groups.dims):
+            raise ValueError("groups must have time and optional batch/replicate dimensions")
+        xr.align(da, groups, join="exact")
+        template = da.isel({d: 0 for d in spatial_dims}, drop=True)
+        for coord in template.coords:
+            if coord in groups.coords and not template[coord].variable.equals(groups[coord].variable):
+                raise ValueError(f"conflicting group coordinate {coord!r}")
+        groups = groups.broadcast_like(template)
+        _reject_split_chunks(groups, group_core)
+    if dim in da.indexes and isinstance(da.indexes[dim], (pd.DatetimeIndex, xr.CFTimeIndex)):
+        index = da.indexes[dim]
+        if not index.is_monotonic_increasing or index.has_duplicates or not len(index):
+            raise ValueError("dates must be nonempty, unique and increasing")
+        cadence = freq or (xr.infer_freq(da[dim]) if len(index) >= 3 else None)
+        if cadence is None:
+            midnight = index.equals(index.normalize()) if isinstance(index, pd.DatetimeIndex) else all(
+                t.hour == t.minute == t.second == t.microsecond == 0 for t in index)
+            if not midnight:
+                raise ValueError("freq is required for an irregular subdaily index")
+            cadence = "D"
+        cf = isinstance(index, xr.CFTimeIndex)
+        dates = (xr.date_range(index.min(), index.max(), freq=cadence, calendar=index.calendar, use_cftime=True)
+                 if cf else pd.date_range(index.min(), index.max(), freq=cadence))
+        if not index.isin(dates).all():
+            raise ValueError("freq would discard observed timestamps")
+        if "npy" not in kwargs:
+            days_by_calendar = {"360_day": 360, "noleap": 365, "365_day": 365, "all_leap": 366, "366_day": 366}
+            year_days = days_by_calendar.get(index.calendar, 365.25) if cf else 365.25
+            try:
+                seconds = pd.tseries.frequencies.to_offset(cadence).nanos / 1e9
+            except ValueError as exc:
+                raise ValueError("provide npy for a non-fixed calendar cadence") from exc
+            kwargs["npy"] = year_days * 86400 / seconds
+        da = da.reindex({dim: dates})
+        if da.chunks:
+            da = da.chunk({dim: -1})
+        if groups is not None:
+            groups = groups.reindex({dim: dates})
+            if groups.chunks:
+                groups = groups.chunk({dim: -1})
+    spatial = da.isel({d: 0 for d in da.dims if d not in spatial_dims}, drop=True)
+
+    def align_spatial(other):
+        xr.align(spatial, other, join="exact")
+        for coord in spatial.coords:
+            if coord in other.coords and not spatial[coord].variable.equals(other[coord].variable):
+                raise ValueError(f"conflicting spatial coordinate {coord!r}")
+
+    def spatial_arg(value):
+        if isinstance(value, xr.DataArray):
+            if any(d not in spatial_dims for d in value.dims):
+                raise ValueError("thresholds, scales and directions can only have spatial dimensions")
+            align_spatial(value)
+            return value.broadcast_like(spatial).transpose(*spatial_dims)
+        return xr.DataArray(np.broadcast_to(np.asarray(value, float), spatial.shape),
+                            dims=spatial.dims, coords=spatial.coords)
+
+    threshold_array = spatial_arg(thresholds)
+    scale_array = spatial_arg(1 if scales is None else scales)
+    direction_array = spatial_arg(1 if directions is None else directions)
+    masks = regions if regions is not None else {None: xr.ones_like(spatial, dtype=bool)}
+    if not masks:
+        raise ValueError("regions must contain at least one nonempty mask")
+    names = ["probability", "return_period", "lower", "upper", "expected_count", "count_lower", "count_upper",
+             "observed_count", "record_length", "fit_threshold"]
+    diagnostics = ["bootstrap_attempted", "bootstrap_successful", "bootstrap_failed", "bootstrap_body", "bootstrap_nonregular"]
+    datasets = []
+    for name, region in masks.items():
+        if not isinstance(region, xr.DataArray) or any(d not in spatial_dims for d in region.dims) or region.dtype != bool:
+            raise ValueError("region masks must be boolean spatial DataArrays")
+        align_spatial(region)
+        region = region.broadcast_like(spatial).transpose(*spatial_dims)
+
+        def block(arr, us, selected, ss, dd, *labels):
+            keep = selected.reshape(-1)
+            if not keep.any():
+                raise ValueError("region must contain at least one site")
+            nrep = arr.shape[0] if replicate_dim else 1
+            x = arr.reshape(nrep, -1, arr.shape[-1])[:, keep, :]
+            result = analyse(x, us.reshape(-1)[keep], groups=labels[0] if labels else None,
+                             scales=None if scales is None else ss.reshape(-1)[keep],
+                             directions=None if directions is None else dd.reshape(-1)[keep], **kwargs)
+            values = [np.nan if getattr(result, n) is None else getattr(result, n) for n in names]
+            if result.bootstrap is None:
+                values.extend([0] * len(diagnostics))
+            else:
+                b = result.bootstrap.diagnostics
+                values.extend([b.n_attempted, b.n_successful, b.n_attempted-b.n_successful,
+                               b.body_replicates, b.nonregular_replicates])
+            return np.asarray(values)
+
+        inputs = [da, threshold_array, region, scale_array, direction_array]
+        input_dims = [core, spatial_dims, spatial_dims, spatial_dims, spatial_dims]
+        if groups is not None:
+            inputs.append(groups)
+            input_dims.append(group_core)
+        result = xr.apply_ufunc(block, *inputs, input_core_dims=input_dims, output_core_dims=[["_stat"]],
+                                vectorize=True, dask="parallelized", output_dtypes=[float],
+                                dask_gufunc_kwargs={"output_sizes": {"_stat": len(names)+len(diagnostics)}})
+        ds = xr.Dataset({n: result.isel(_stat=i, drop=True) for i, n in enumerate(names+diagnostics)})
+        if regions is not None:
+            ds = ds.expand_dims(region=[name])
+        datasets.append(ds)
+    out = xr.concat(datasets, dim="region") if regions is not None else datasets[0]
+    out.attrs.update(tails_model="joint_pot", event=kwargs.get("event", "all"), run_length=kwargs.get("run_length", 1),
+                     interval_method=str(kwargs.get("ci", "profile")),
+                     bootstrap_failure_policy="any failed refit makes bounds unavailable")
+    unit = "observations" if kwargs.get("npy", 365.25) is None else "years"
+    for variable in ["return_period", "lower", "upper"]:
+        out[variable].attrs["units"] = unit
+    out.probability.attrs["description"] = "Event or run-cluster rate per original observation"
+    return out
 
 
 def _fit_block(arr, covs, method, n_out):
