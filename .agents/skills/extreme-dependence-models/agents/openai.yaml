@@ -1,0 +1,3 @@
+interface:
+  display_name: "Extreme Dependence Models"
+  short_description: "Joint, conditional, spatial and temporal extremes"
