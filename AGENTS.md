@@ -145,6 +145,18 @@ then `quantile_ci([1.0], [100])` gives a 100-year 1-hour intensity of 43.6 mm/h
   comments. Licence text stays in `NOTICE` only.
 - Do not add a public planning document or a benchmark suite to this tree.
 
+## Scientific skills
+
+Repository-local skills in `.agents/skills/` support scientific work with `tails`:
+
+- [Extreme-value foundations](.agents/skills/extreme-value-foundations/SKILL.md): univariate tails, exposure, endpoints and return periods.
+- [Extreme dependence models](.agents/skills/extreme-dependence-models/SKILL.md): joint, conditional, spatial and consecutive events.
+- [Extreme-value validation](.agents/skills/extreme-value-validation/SKILL.md): fair comparisons, uncertainty checks and published-method reproduction.
+
+Use the relevant skill when the task calls for it. These references support
+scientific reasoning; they do not certify a fitted model. Keep research datasets,
+validation campaigns and their reports outside this repository.
+
 ## Tests and docs
 
 ```bash

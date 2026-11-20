@@ -1,0 +1,3 @@
+interface:
+  display_name: "Extreme Value Foundations"
+  short_description: "GEV, GPD, exposure, endpoints and return periods"
